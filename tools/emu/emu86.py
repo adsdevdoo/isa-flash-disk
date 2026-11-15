@@ -7,7 +7,9 @@ Needs the Unicorn engine (pip install unicorn==2.1.4). Models:
   erase, SR.3 when VPP is low, command sequence errors (datasheet 290429-008, tables 3 and 4);
 * a minimal BIOS: real interrupt vectoring through the IVT, INT 10h teletype, a floppy that is never ready,
   INT 16h keys, BIOS data area with a tick counter that advances on every read of 0040:006C;
-* a minimal DOS: INT 21h file I/O on a host directory, memory allocation, console, exit codes.
+* a minimal DOS: INT 21h file I/O on a host directory, memory allocation, console, exit codes;
+* power failure: Card.fail_at = n lets n program/erase operations complete, the next one is lost and the run
+  stops ("powerfail"); Card.reset() is the power-on reset (RESET DRV, RP#).
 
 This is a functional model, not a timing model: it shows that the code drives the card as the datasheet
 describes, it does not prove ISA bus timing.
@@ -37,6 +39,7 @@ class Flash:
         self.expect = None
         self.programs = 0
         self.erases = 0
+        self.block_erases = [0] * 16
 
     def read(self, addr):
         if self.mode == "array":
@@ -67,6 +70,7 @@ class Flash:
                 base = addr & 0xF0000
                 self.mem[base:base + 0x10000] = b"\xff" * 0x10000
                 self.erases += 1
+                self.block_erases[base >> 16] += 1
             self.sr |= 0x80
             return
         if val == 0xFF:
@@ -94,6 +98,16 @@ class Card:
         self.bank = 0
         self.ctrl = 0
         self.bank_writes = 0
+        self.ops = 0                    # completed program and erase operations
+        self.fail_at = None             # power fails before operation number fail_at + 1
+        self.dead = False
+
+    def reset(self):
+        """Power on: RESET DRV clears BANK and CTRL, RP# puts the chips into Read Array."""
+        self.bank = self.ctrl = 0
+        self.dead, self.fail_at = False, None
+        for f in self.flash:
+            f.mode, f.expect, f.sr = "array", None, 0x80
 
     def linear(self, off):
         return self.bank >> 7, ((self.bank & 0x7F) << 13) | off
@@ -108,8 +122,15 @@ class Card:
         if not (self.ctrl & 0x01):
             return                      # WE# held high by the CTRL register
         chip, addr = self.linear(off)
-        if chip < len(self.flash):
-            self.flash[chip].write(addr, val, bool(self.ctrl & 0x02) and self.jumper)
+        if self.dead or chip >= len(self.flash):
+            return
+        f = self.flash[chip]
+        if f.expect in ("program", "erase"):
+            if self.fail_at is not None and self.ops >= self.fail_at:
+                self.dead = True        # the operation never happens
+                return
+            self.ops += 1
+        f.write(addr, val, bool(self.ctrl & 0x02) and self.jumper)
 
     def out(self, port, val):
         if port == self.port:
@@ -175,6 +196,10 @@ class PC:
         base = self.card.window * 16
         for i in range(size):
             self.card.win_write(address - base + i, (value >> (8 * i)) & 0xFF)
+        if self.card.dead:
+            self.stopped_by = "powerfail"
+            uc.emu_stop()
+            return
         self.refresh_window()
 
     def refresh_window(self, force=False):

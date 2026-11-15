@@ -4,11 +4,12 @@
 Usage:
   python tools/mkdisk.py DISK.IMG --chips 2 [--boot DOSBOOT.IMG] [--add FILE ...] [--label NAME] [--split KB]
 
-Geometry matches the descriptor written by FLFORMAT (disk format 2): 4 heads, 16 sectors per track,
-1 chip = 28 cylinders (1792 sectors), 2 chips = 60 cylinders (3840 sectors). The image is a plain disk image
-(PC emulators can mount it); FLWRITE /D stores it inverted on the card, FLREAD /D inverts it back.
+Geometry matches the descriptor written by FLFORMAT (disk format 3): 127 cylinders x 2 heads x (logical
+blocks / 2) sectors per track = 127 sectors per logical block: 1 chip = 127/2/7 (1778 sectors),
+2 chips = 127/2/15 (3810 sectors). The image is a plain disk image (PC emulators can mount it); FLWRITE /D
+cuts it into logical blocks and stores it on the card, FLREAD /D puts it back together.
 Layout: MBR (dist/MBR.BIN, partition table filled here), one active FAT12 partition from C/H/S 0/1/1
-(LBA 16) to the end of the disk, 4 sectors per cluster, 512 root entries.
+(LBA = sectors per track) to the end of the disk, 4 sectors per cluster, 512 root entries.
 
 --boot  a bootable DOS floppy image (raw .IMG with a FAT12 file system). Its boot sector code is used with
         this disk's BPB, and the system files are copied first and contiguous, as the DOS boot sector expects:
@@ -18,8 +19,8 @@ Layout: MBR (dist/MBR.BIN, partition table filled here), one active FAT12 partit
         set to 80h; the boot code is left as it is.
         Without --boot the partition gets dist/VBRSTUB.BIN, which only prints "no operating system".
 --add   more files for the root directory (8.3 names).
---split write DISK.001, DISK.002, ... of at most KB kilobytes each (multiple of 64) for floppies and print the
-        FLWRITE commands with the /O:block offsets.
+--split write DISK.001, DISK.002, ... of at most KB kilobytes each (whole logical blocks of 127 sectors,
+        63.5 KB) for floppies and print the FLWRITE commands with the /O:block offsets.
 """
 
 import argparse
@@ -31,10 +32,18 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST = os.path.join(ROOT, "dist")
-HEADS, SPT = 4, 16
-PART_START = SPT                 # C/H/S 0/1/1
+LBLK_SECTORS = 127               # disk format 3: sectors per logical block
+CYLS, HEADS = 127, 2
+SPT = PART_START = 15            # set by set_geometry(); the partition starts at C/H/S 0/1/1
 SPC, RESERVED, NFATS, ROOT_ENTRIES, MEDIA = 4, 1, 2, 512, 0xF8
 SYSTEM_SETS = [("IO.SYS", "MSDOS.SYS"), ("IBMBIO.COM", "IBMDOS.COM"), ("KERNEL.SYS",)]
+
+
+def set_geometry(chips):
+    """Logical blocks = chips * 16 - 2; sectors per track = half of them, so C*H*S = 127 * blocks."""
+    global SPT, PART_START
+    SPT = PART_START = (chips * 16 - 2) // 2
+    return CYLS * HEADS * SPT
 
 
 def chs(lba):
@@ -109,7 +118,7 @@ def dos_datetime(ts):
 
 
 def build(args):
-    total = args.chips * 2048 - 256     # minus block 0 (ROM, descriptor) and the spare block
+    total = set_geometry(args.chips)
     psecs = total - PART_START
     spf, root_secs, clusters = fat_layout(psecs)
     img = bytearray(total * 512)
@@ -219,22 +228,23 @@ def main():
     ap.add_argument("--boot")
     ap.add_argument("--add", nargs="*")
     ap.add_argument("--label", default="FLASHDISK")
-    ap.add_argument("--split", type=int, help="part size in KB (multiple of 64)")
+    ap.add_argument("--split", type=int, help="part size in KB (rounded down to whole 63.5 KB blocks)")
     args = ap.parse_args()
     img = build(args)
     with open(args.out, "wb") as f:
         f.write(img)
     print("wrote %s" % args.out)
     if args.split:
-        if args.split % 64:
-            sys.exit("--split must be a multiple of 64 KB")
-        part = args.split * 1024
+        lblk = LBLK_SECTORS * 512
+        part = args.split * 1024 // lblk * lblk
+        if not part:
+            sys.exit("--split must be at least 64 KB")
         stem = os.path.splitext(args.out)[0]
         for i in range(0, len(img), part):
             name = "%s.%03d" % (stem, i // part + 1)
             with open(name, "wb") as f:
                 f.write(img[i:i + part])
-            print("FLWRITE %s /D /O:%X" % (os.path.basename(name).upper(), i // 0x10000))
+            print("FLWRITE %s /D /O:%X" % (os.path.basename(name).upper(), i // lblk))
 
 
 if __name__ == "__main__":

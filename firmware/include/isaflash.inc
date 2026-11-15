@@ -36,21 +36,40 @@ ROM_SIGNATURE   equ 'ISAFLASH'
 
 ; ---- Disk descriptor (512 bytes at DESC_LINEAR) ----
 DESC_SIG        equ 00h         ; 'ISAFLDSK'
-DESC_VERSION    equ 08h         ; dw 2 (format 2: data stored inverted, spare block)
+DESC_VERSION    equ 08h         ; dw 3 (disk format 3, see below)
 DESC_CHIPS      equ 0Ah         ; db 1 or 2
 DESC_CYLS       equ 0Ch         ; dw
 DESC_HEADS      equ 0Eh         ; dw
 DESC_SPT        equ 10h         ; dw
-DESC_TOTAL      equ 12h         ; dw total data sectors (<= 3968)
+DESC_TOTAL      equ 12h         ; dw disk sectors = 127 * logical blocks
 DESC_DATA       equ 14h         ; dw first data sector (linear sector number, 128)
-DESC_SPARE      equ 16h         ; db spare 64 KB block used to rewrite a block (last block of the flash)
-DESC_FORMAT     equ 2           ; disk format version
-; Format 2: the disk area is stored inverted (stored byte = NOT data). Erased flash (FFh) reads as zeros,
-; so writing into free space only clears bits and is programmed in place without an erase.
+DESC_LBLKS      equ 16h         ; db logical blocks (chips * 16 - 2)
+DESC_PBLKS      equ 17h         ; db physical data blocks: flash blocks 1 .. PBLKS (chips * 16 - 1)
+DESC_FORMAT     equ 3           ; disk format version
 DESC_CHECKSUM   equ 1FFh        ; byte: all 512 bytes sum to 0 (mod 256)
 DESC_SIGNATURE  equ 'ISAFLDSK'
-DISK_HEADS      equ 4
-DISK_SPT        equ 16
+DISK_CYLS       equ 127         ; geometry: 127 cylinders x 2 heads x (logical blocks / 2) sectors
+DISK_HEADS      equ 2
+
+; ---- Disk format 3 (docs/programming.md) ----
+; The disk is cut into logical blocks of 127 sectors. Each logical block lives in one 64 KB flash block
+; (sectors 0..126); sector 127 of the flash block is its header. One physical block more than logical blocks:
+; a block that needs an erase is rewritten into the free block, and the old copy becomes the free block.
+; Data bytes are stored inverted (stored = NOT data): erased flash reads as zeros, so writing into free space
+; only clears bits and is programmed in place without an erase. Headers are stored as they are.
+SECTORS_PER_LBLK equ 127
+HDR_BANK        equ 7           ; header = bank block * 8 + 7, window offset 1E00h
+HDR_WOFF        equ 1E00h
+HDR_SIG         equ 00h         ; 'FLBK'
+HDR_LBLK        equ 04h         ; db logical block, db NOT logical block
+HDR_GEN         equ 08h         ; dd generation, dd NOT generation (higher = newer)
+HDR_VALID       equ 10h         ; db 00h: the copy is complete (programmed last)
+HDR_LEN         equ 11h
+RELOC_MASK      equ 7           ; after a rewrite whose generation is a multiple of 8, move one more block
+                                ; round-robin, so a hot block does not wear out two flash blocks only
+INT13_REMOUNT   equ 0F1h        ; private INT 13h call: BX = REMOUNT_KEY -> descriptor and block map read again
+REMOUNT_KEY     equ 464Ch
+REMOUNT_ACK     equ 6C66h       ; BX on return
 
 ; ---- 28F008SA (datasheet table 3, table 4) ----
 FL_READ_ARRAY   equ 0FFh

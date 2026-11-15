@@ -52,76 +52,61 @@ start:  cld
 .u2:    mov     ax, [id1]
         call    print_id
 
-.desc:  ; descriptor: bank 1 -> tmpbuf
-        mov     al, DESC_LINEAR / WINDOW_SIZE
-        call    set_bank
-        push    ds
-        push    es
-        mov     ds, [winseg]
-        push    cs
-        pop     es
-        xor     si, si
-        mov     di, tmpbuf
-        mov     cx, SECTOR_SIZE / 2
-        rep     movsw
-        pop     es
-        pop     ds
-        xor     al, al
-        call    set_bank
-        mov     si, tmpbuf
-        mov     di, desc_sig
-        mov     cx, 8
-        push    es
-        push    cs
-        pop     es
-        repe    cmpsb
-        pop     es
-        jne     .nodesc
-        mov     si, tmpbuf
-        mov     cx, SECTOR_SIZE
-        xor     ah, ah
-.sum:   add     ah, [si]
-        inc     si
-        loop    .sum
-        or      ah, ah
-        jnz     .baddesc
-        PRINT   msg_disk1
-        mov     ax, [tmpbuf + DESC_CYLS]
+.desc:  call    load_desc
+        jnc     .d3
+        mov     dx, msg_nodesc
+        cmp     al, 1
+        je      .dmsg
+        mov     dx, msg_baddesc
+        cmp     al, 2
+        je      .dmsg
+        PRINT   msg_old1
+        mov     ax, [dbuf + DESC_VERSION]
+        call    print_dec
+        mov     dx, msg_old2
+.dmsg:  call    print_dollar
+        jmp     .jumper
+.d3:    PRINT   msg_disk1
+        mov     ax, [dbuf + DESC_CYLS]
         call    print_dec
         mov     dl, '/'
         call    print_char
-        mov     ax, [tmpbuf + DESC_HEADS]
+        mov     ax, [dbuf + DESC_HEADS]
         call    print_dec
         mov     dl, '/'
         call    print_char
-        mov     ax, [tmpbuf + DESC_SPT]
+        mov     ax, [dbuf + DESC_SPT]
         call    print_dec
         PRINT   msg_disk2
-        mov     ax, [tmpbuf + DESC_TOTAL]
+        mov     ax, [dbuf + DESC_TOTAL]
         call    print_dec
         PRINT   msg_disk3
-        mov     ax, [tmpbuf + DESC_TOTAL]
+        mov     ax, [dbuf + DESC_TOTAL]
         shr     ax, 1
         call    print_dec
         PRINT   msg_disk4
-        mov     ax, [tmpbuf + DESC_VERSION]
-        call    print_dec
-        cmp     ax, DESC_FORMAT
-        jne     .oldfmt
-        PRINT   msg_disk5
-        mov     al, [tmpbuf + DESC_SPARE]
+        call    scan_map
+        jnc     .map
+        PRINT   msg_nomap
+        jmp     .jumper
+.map:   PRINT   msg_map1
+        mov     al, [d_nl]
         xor     ah, ah
         call    print_dec
-        call    print_crlf
-        jmp     .jumper
-.oldfmt:
-        PRINT   msg_oldfmt
-        jmp     .jumper
-.nodesc:
-        PRINT   msg_nodesc
-        jmp     .jumper
-.baddesc:
-        PRINT   msg_baddesc
+        PRINT   msg_map2
+        mov     al, [d_np]
+        xor     ah, ah
+        call    print_dec
+        PRINT   msg_map3
+        mov     al, [fl_free]
+        xor     ah, ah
+        call    print_dec
+        PRINT   msg_map4
+        mov     ax, [fseq + 2]
+        call    print_hex16
+        mov     ax, [fseq]
+        call    print_hex16
+        PRINT   msg_h_crlf
 
 .jumper:
         test    byte [opt_flags], OPT_JUMPER
@@ -163,7 +148,7 @@ print_id:
 %include "flashlib.inc"
 
 desc_sig:       db      'ISAFLDSK'
-msg_banner:     db      'FLINFO 1.1 - ISA Flash Disk', 13, 10, '$'
+msg_banner:     db      'FLINFO 1.2 - ISA Flash Disk', 13, 10, '$'
 msg_usage:      db      'Usage: FLINFO [/J] [/M:seg] [/P:port]', 13, 10
                 db      '  /J  test the WRITE jumper JP1', 13, 10, '$'
 msg_rom1:       db      'Option ROM: version $'
@@ -178,9 +163,14 @@ msg_unknown:    db      ' (unknown)', 13, 10, '$'
 msg_disk1:      db      'Disk: C/H/S $'
 msg_disk2:      db      ', $'
 msg_disk3:      db      ' sectors ($'
-msg_disk4:      db      ' KB), format $'
-msg_disk5:      db      ', spare block $'
-msg_oldfmt:     db      ' (old: run FLFORMAT /E, write the disk again)', 13, 10, '$'
+msg_disk4:      db      ' KB), format 3', 13, 10, '$'
+msg_old1:       db      'Disk: format $'
+msg_old2:       db      ' (old): run FLFORMAT /E and write the disk again', 13, 10, '$'
+msg_nomap:      db      'Block map: damaged (run FLFORMAT /E)', 13, 10, '$'
+msg_map1:       db      'Blocks: $'
+msg_map2:       db      ' logical in $'
+msg_map3:       db      ' flash blocks, free block $'
+msg_map4:       db      ', generation $'
 msg_nodesc:     db      'Disk: no descriptor (run FLFORMAT)', 13, 10, '$'
 msg_baddesc:    db      'Disk: descriptor checksum error', 13, 10, '$'
 msg_jp_open:    db      'WRITE jumper JP1: open (VPP low, flash protected)', 13, 10, '$'

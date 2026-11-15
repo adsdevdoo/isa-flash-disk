@@ -440,6 +440,262 @@ wb_bank0:
         pop     ax
         ret
 
+; ---- disk format 3 (docs/programming.md, firmware/include/isaflash.inc) ----
+; load_desc: descriptor (bank 1) -> dbuf, d_nl, d_np. AL = 0 format 3, 1 no descriptor, 2 checksum error,
+; 3 another format version (in dbuf). CF unless AL = 0.
+load_desc:
+        push    cx
+        push    si
+        push    di
+        push    ds
+        push    es
+        mov     al, DESC_LINEAR / WINDOW_SIZE
+        call    set_bank
+        mov     ds, [winseg]
+        push    cs
+        pop     es
+        xor     si, si
+        mov     di, dbuf
+        mov     cx, SECTOR_SIZE / 2
+        rep     movsw
+        pop     es
+        pop     ds
+        xor     al, al
+        call    set_bank
+        push    es
+        push    cs
+        pop     es
+        mov     si, dbuf
+        mov     di, desc_sig3
+        mov     cx, 8
+        repe    cmpsb
+        pop     es
+        mov     al, 1
+        jne     .bad
+        mov     si, dbuf
+        mov     cx, SECTOR_SIZE
+        xor     ah, ah
+.sum:   add     ah, [si]
+        inc     si
+        loop    .sum
+        mov     al, 2
+        or      ah, ah
+        jnz     .bad
+        mov     al, 3
+        cmp     word [dbuf + DESC_VERSION], DESC_FORMAT
+        jne     .bad
+        mov     al, [dbuf + DESC_LBLKS]
+        mov     [d_nl], al
+        mov     al, [dbuf + DESC_PBLKS]
+        mov     [d_np], al
+        xor     al, al
+        pop     di
+        pop     si
+        pop     cx
+        clc
+        ret
+.bad:   pop     di
+        pop     si
+        pop     cx
+        stc
+        ret
+
+; scan_map: block headers -> fmap (physical block of every logical block: the complete copy with the highest
+; generation), fl_free (the physical block left over), fseq (highest generation). Needs load_desc.
+; CF = a logical block has no complete copy, or the descriptor counts are wrong.
+scan_map:
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    si
+        push    di
+        push    es
+        mov     al, [d_nl]
+        or      al, al
+        jz      .bad
+        cmp     al, [d_np]
+        jae     .bad
+        cmp     byte [d_np], 31
+        ja      .bad
+        push    cs
+        pop     es
+        mov     di, fmap
+        mov     cx, 32
+        mov     al, 0FFh
+        rep     stosb
+        xor     ax, ax
+        mov     [fseq], ax
+        mov     [fseq + 2], ax
+        mov     byte [sm_p], 1
+.blk:   mov     al, [sm_p]
+        mov     cl, 3
+        shl     al, cl
+        add     al, HDR_BANK
+        call    set_bank
+        mov     es, [winseg]
+        mov     si, HDR_WOFF
+        cmp     word [es:si + HDR_SIG], 'FL'
+        jne     .next
+        cmp     word [es:si + HDR_SIG + 2], 'BK'
+        jne     .next
+        mov     bl, [es:si + HDR_LBLK]
+        mov     bh, [es:si + HDR_LBLK + 1]
+        not     bh
+        cmp     bl, bh
+        jne     .next
+        cmp     bl, [d_nl]
+        jae     .next
+        mov     ax, [es:si + HDR_GEN + 4]
+        not     ax
+        cmp     ax, [es:si + HDR_GEN]
+        jne     .next
+        mov     dx, [es:si + HDR_GEN + 6]
+        not     dx
+        cmp     dx, [es:si + HDR_GEN + 2]
+        jne     .next
+        cmp     byte [es:si + HDR_VALID], 0
+        jne     .next
+        cmp     dx, [fseq + 2]          ; DX:AX = generation, BL = logical block
+        jb      .cand
+        ja      .max
+        cmp     ax, [fseq]
+        jbe     .cand
+.max:   mov     [fseq], ax
+        mov     [fseq + 2], dx
+.cand:  xor     bh, bh
+        mov     di, bx
+        shl     di, 1
+        shl     di, 1
+        cmp     byte [fmap + bx], 0FFh
+        je      .take
+        cmp     dx, [fgen + di + 2]
+        jb      .next
+        ja      .take
+        cmp     ax, [fgen + di]
+        jbe     .next
+.take:  mov     [fgen + di], ax
+        mov     [fgen + di + 2], dx
+        mov     al, [sm_p]
+        mov     [fmap + bx], al
+.next:  inc     byte [sm_p]
+        mov     al, [sm_p]
+        cmp     al, [d_np]
+        jbe     .blk
+        xor     al, al
+        call    set_bank
+        xor     bx, bx
+.chk:   cmp     byte [fmap + bx], 0FFh
+        je      .bad
+        inc     bx
+        cmp     bl, [d_nl]
+        jb      .chk
+        push    cs
+        pop     es
+        mov     al, 1
+.fr:    mov     di, fmap
+        mov     cl, [d_nl]
+        xor     ch, ch
+        repne   scasb
+        jne     .free
+        inc     al
+        cmp     al, [d_np]
+        jbe     .fr
+        jmp     .bad
+.free:  mov     [fl_free], al
+        pop     es
+        pop     di
+        pop     si
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        clc
+        ret
+.bad:   xor     al, al
+        call    set_bank
+        pop     es
+        pop     di
+        pop     si
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+        stc
+        ret
+
+; buf_header: AL = logical block -> block header with generation fseq + 1 at [bufseg]:FE00h (fseq += 1).
+; The rest of FE00h..FFFFh must be FFh.
+buf_header:
+        push    ax
+        push    di
+        push    es
+        mov     es, [bufseg]
+        mov     di, SECTORS_PER_LBLK * SECTOR_SIZE
+        mov     word [es:di + HDR_SIG], 'FL'
+        mov     word [es:di + HDR_SIG + 2], 'BK'
+        mov     [es:di + HDR_LBLK], al
+        not     al
+        mov     [es:di + HDR_LBLK + 1], al
+        add     word [fseq], 1
+        adc     word [fseq + 2], 0
+        mov     ax, [fseq]
+        mov     [es:di + HDR_GEN], ax
+        not     ax
+        mov     [es:di + HDR_GEN + 4], ax
+        mov     ax, [fseq + 2]
+        mov     [es:di + HDR_GEN + 2], ax
+        not     ax
+        mov     [es:di + HDR_GEN + 6], ax
+        mov     byte [es:di + HDR_VALID], 0
+        pop     es
+        pop     di
+        pop     ax
+        ret
+
+; remount: tell the resident option ROM (if it is in memory) to read the descriptor and the block map again,
+; so it never writes by a block map that the utility has just changed (INT 13h AH=F1h, private).
+remount:
+        cmp     byte [rom_found], 0
+        je      .end
+        push    ax
+        push    bx
+        push    cx
+        push    dx
+        push    si
+        push    di
+        push    es
+        mov     dl, 80h
+.try:   push    dx
+        mov     ah, INT13_REMOUNT
+        mov     bx, REMOUNT_KEY
+        int     13h
+        pop     dx
+        jc      .nx
+        cmp     bx, REMOUNT_ACK
+        je      .done
+.nx:    inc     dl
+        cmp     dl, 84h
+        jb      .try
+.done:  pop     es
+        pop     di
+        pop     si
+        pop     dx
+        pop     cx
+        pop     bx
+        pop     ax
+.end:   ret
+
+desc_sig3:      db      'ISAFLDSK'
+fseq            dd      0
+d_nl            db      0
+d_np            db      0
+fl_free           db      0
+sm_p            db      0
+fmap:           times 32 db 0FFh
+fgen:           times 32 * 4 db 0
+dbuf:           times SECTOR_SIZE db 0
+
 ; alloc_buffer: shrink the program to 64 KB and allocate a 64 KB buffer -> [bufseg]. CF = no memory.
 alloc_buffer:
         push    es
@@ -512,7 +768,7 @@ winseg          dw      0
 bufseg          dw      0
 opt_port        dw      0
 opt_mem         dw      0
-opt_off         dw      0               ; /O: first 64 KB block inside the area
+opt_off         dw      0               ; /O: first block (logical block with /D, else 64 KB block)
 id0             dw      0
 id1             dw      0
 opt_flags       db      0

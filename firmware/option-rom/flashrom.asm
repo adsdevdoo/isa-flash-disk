@@ -3,11 +3,12 @@
 ; Build:  nasm -f bin -I ../include/ -o FLASHROM.BIN flashrom.asm   (tools/build_dos.py also fixes the checksum)
 ;
 ; The BIOS finds the ROM in the 8 KB window (XT Technical Reference 5-10) and far-calls offset 3.
-; init runs from the window: it takes 2 KB from the top of base memory (word 40h:13h) and copies the
+; init runs from the window: it takes 3 KB from the top of base memory (word 40h:13h) and copies the
 ; resident part there. Only the resident part may switch banks, because the ROM disappears from the window
 ; as soon as another bank is selected: init far-calls the RAM copy of read_desc to fetch the descriptor
-; from bank 1, then validates it, installs an INT 13h hard disk (read and write) and, when the disk became 80h,
-; an INT 19h handler that boots from A: first and from the flash disk next.
+; from bank 1 and the block map from the block headers (disk format 3, docs/programming.md), then installs
+; an INT 13h hard disk (read and write) and, when the disk became 80h, an INT 19h handler that boots from A:
+; first and from the flash disk next.
 ;
 ; Bank 0 rule (docs/architecture.md): every routine leaves BANK = 0 and CTRL = 0 with interrupts enabled,
 ; so a warm boot (Ctrl-Alt-Del does not pulse RESET DRV) still finds this ROM.
@@ -17,7 +18,7 @@
 
 %include "isaflash.inc"
 
-RES_KB  equ     2                       ; resident part size in KB taken from base memory
+RES_KB  equ     3                       ; resident part size in KB taken from base memory
 TICKS_ERASE equ 400                     ; 22 s; block erase is at most 10 s (datasheet p. 34)
 
 ; =====================================================================================================
@@ -31,8 +32,8 @@ rom_start:
         db      'ISAFLASH'
 cfg_port:
         dw      DEFAULT_PORT            ; ROMH_PORT, patched by FLFORMAT for the SW2 setting
-        db      1, 1                    ; ROMH_VERSION
-        db      'ISA Flash Disk option ROM 1.1', 0
+        db      1, 2                    ; ROMH_VERSION
+        db      'ISA Flash Disk option ROM 1.2', 0
 
 init:
         push    ax
@@ -71,7 +72,7 @@ init:
         mov     ax, read_desc
         push    ax
         retf
-.back:  cmp     byte [es:r_valid], 1
+.back:  cmp     byte [es:r_valid], 2
         jne     .bad
 
         ; sanity: 1..1024 cylinders, 1..255 heads, 1..63 sectors, total fits the geometry
@@ -144,7 +145,8 @@ init:
         call    print
         jmp     .done
 
-.bad:   mov     ax, 40h
+.bad:   mov     bl, [es:r_valid]
+        mov     ax, 40h
         mov     ds, ax
         add     word [13h], RES_KB      ; give the memory back
         push    cs
@@ -152,7 +154,10 @@ init:
         mov     si, msg_head
         call    print
         mov     si, msg_nodisk
-        call    print
+        cmp     bl, 1
+        jne     .msg
+        mov     si, msg_nomap
+.msg:   call    print
 .done:  pop     es
         pop     ds
         pop     bp
@@ -241,7 +246,8 @@ msg_kb:         db      ' KB, drive ', 0
 msg_port:       db      'h, port ', 0
 msg_rom:        db      'h, ROM ', 0
 msg_end:        db      '0h', 13, 10, 0
-msg_nodisk:     db      'no disk descriptor, run FLFORMAT', 13, 10, 0
+msg_nodisk:     db      'no disk (format 3), run FLFORMAT /E', 13, 10, 0
+msg_nomap:      db      'disk block map damaged, run FLFORMAT /E', 13, 10, 0
 
 res_load equ    section.res.start
 
@@ -249,9 +255,11 @@ res_load equ    section.res.start
         section res vstart=0 follows=.text align=16
 res_begin:
 
-; ---- read_desc: far-called once by init; copies the descriptor fields from bank 1 ----
+; ---- read_desc: far-called by init and by the remount call. Descriptor fields from bank 1, then the block map.
+; r_valid: 0 = no format 3 descriptor, 1 = descriptor but no complete block map, 2 = disk ready.
 read_desc:
         push    ax
+        push    bx
         push    cx
         push    dx
         push    si
@@ -293,24 +301,140 @@ read_desc:
         mov     [r_spt], ax
         mov     ax, [es:DESC_TOTAL]
         mov     [r_total], ax
-        mov     ax, [es:DESC_DATA]
-        mov     [r_data], ax
-        mov     al, [es:DESC_SPARE]
-        mov     [r_spare], al
+        mov     al, [es:DESC_LBLKS]
+        mov     [r_nl], al
+        mov     al, [es:DESC_PBLKS]
+        mov     [r_np], al
         mov     byte [r_valid], 1
 .out:   xor     al, al
         out     dx, al                  ; bank 0: the ROM is back
         sti
-        pop     es
+        cmp     byte [r_valid], 1
+        jne     .ret
+        call    mount
+.ret:   pop     es
         pop     ds
         pop     di
         pop     si
         pop     dx
         pop     cx
+        pop     bx
         pop     ax
         retf
 
-; ---- INT 13h: hard disk; data are stored inverted (format 2) ----
+; mount: reads the header of every physical block (1..r_np) and keeps, for each logical block, the complete
+; copy with the highest generation. r_free = the physical block left over, r_seq = highest generation seen.
+; r_valid = 2 when every logical block has a copy. DS = CS, DX = port. Uses rbuf for the generations.
+mount:
+        push    cs
+        pop     es
+        mov     al, [r_nl]
+        or      al, al
+        jz      .ret
+        cmp     al, [r_np]
+        jae     .ret
+        cmp     byte [r_np], 31
+        ja      .ret
+        mov     ah, SECTORS_PER_LBLK
+        mul     ah
+        cmp     ax, [r_total]
+        jb      .ret
+        mov     di, r_map
+        mov     cx, 32
+        mov     al, 0FFh
+        rep     stosb
+        xor     ax, ax
+        mov     [r_seq], ax
+        mov     [r_seq + 2], ax
+        mov     byte [m_p], 1
+.blk:   mov     al, [m_p]
+        mov     cl, 3
+        shl     al, cl
+        add     al, HDR_BANK
+        mov     si, HDR_WOFF
+        mov     ds, [cs:r_winseg]
+        cli
+        out     dx, al
+        cmp     word [si + HDR_SIG], 'FL'
+        jne     .bad
+        cmp     word [si + HDR_SIG + 2], 'BK'
+        jne     .bad
+        mov     bl, [si + HDR_LBLK]
+        mov     bh, [si + HDR_LBLK + 1]
+        not     bh
+        cmp     bl, bh
+        jne     .bad
+        mov     ax, [si + HDR_GEN + 4]
+        not     ax
+        cmp     ax, [si + HDR_GEN]
+        jne     .bad
+        mov     cx, [si + HDR_GEN + 6]
+        not     cx
+        cmp     cx, [si + HDR_GEN + 2]
+        jne     .bad
+        cmp     byte [si + HDR_VALID], 0
+        jne     .bad
+        call    bank0                   ; complete copy: BL = logical block, CX:AX = generation
+        push    cs
+        pop     ds
+        cmp     bl, [r_nl]
+        jae     .next
+        cmp     cx, [r_seq + 2]
+        jb      .cand
+        ja      .max
+        cmp     ax, [r_seq]
+        jbe     .cand
+.max:   mov     [r_seq], ax
+        mov     [r_seq + 2], cx
+.cand:  xor     bh, bh
+        mov     di, bx
+        shl     di, 1
+        shl     di, 1                   ; generation of logical block BX at rbuf + 4 * BX
+        cmp     byte [r_map + bx], 0FFh
+        je      .take
+        cmp     cx, [rbuf + di + 2]
+        jb      .next
+        ja      .take
+        cmp     ax, [rbuf + di]
+        jbe     .next
+.take:  mov     [rbuf + di], ax
+        mov     [rbuf + di + 2], cx
+        mov     al, [m_p]
+        mov     [r_map + bx], al
+        jmp     .next
+.bad:   call    bank0
+        push    cs
+        pop     ds
+.next:  inc     byte [m_p]
+        mov     al, [m_p]
+        cmp     al, [r_np]
+        jbe     .blk
+
+        xor     bx, bx                  ; every logical block needs a copy
+.chk:   cmp     byte [r_map + bx], 0FFh
+        je      .ret
+        inc     bx
+        cmp     bl, [r_nl]
+        jb      .chk
+        mov     al, 1                   ; free block = first physical block that holds no logical one
+.fr:    mov     di, r_map
+        mov     cl, [r_nl]
+        xor     ch, ch
+        repne   scasb
+        jne     .free
+        inc     al
+        cmp     al, [r_np]
+        jbe     .fr
+        jmp     .ret
+.free:  mov     [r_free], al
+        mov     al, [r_seq]             ; round-robin start for the wear leveling moves
+        xor     ah, ah
+        div     byte [r_nl]
+        mov     [r_rr], ah
+        mov     byte [r_valid], 2
+.ret:   ret
+
+; ---- INT 13h: hard disk, disk format 3 (docs/programming.md) ----
 int13:
         cmp     dl, [cs:r_drive]
         je      .ours
@@ -327,6 +451,8 @@ int13:
         je      i13_type
         cmp     ah, 01h
         je      i13_status
+        cmp     ah, INT13_REMOUNT
+        je      i13_remount
         cmp     ah, 00h                 ; reset
         je      i13_ok
         cmp     ah, 04h                 ; verify
@@ -343,6 +469,7 @@ int13:
         je      i13_ok
         cmp     ah, 11h                 ; recalibrate
         je      i13_ok
+i13_inval:
         mov     ah, 01h                 ; invalid function
         jmp     i13_err
 
@@ -368,6 +495,19 @@ i13_type:
         clc
         retf    2
 
+; AH=F1h, BX=464Ch (private, used by FLWRITE and FLFORMAT after they changed the flash): read the descriptor
+; and the block map again. BX = 6C66h on return.
+i13_remount:
+        cmp     bx, REMOUNT_KEY
+        jne     i13_inval
+        push    cs
+        call    read_desc
+        mov     bx, REMOUNT_ACK
+        cmp     byte [cs:r_valid], 2
+        je      i13_ok
+        mov     ah, 0AAh                ; drive not ready
+        jmp     i13_err
+
 i13_params:
         mov     ax, [cs:r_cyls]
         dec     ax                      ; highest cylinder
@@ -390,11 +530,13 @@ i13_params:
         clc
         retf    2
 
-; chs_lin: AL = count, CH/CL/DH = C/H/S (BIOS packing) -> BP = linear sector on the card, t_left = count.
-; CF = outside the disk. Destroys AX, CX, DX.
+; chs_lin: AL = count, CH/CL/DH = C/H/S (BIOS packing) -> BP = logical sector (LBA), t_left = count.
+; CF = outside the disk or no disk. Destroys AX, CX, DX.
 chs_lin:
         mov     [cs:t_left], al
         mov     byte [cs:t_done], 0
+        cmp     byte [cs:r_valid], 2
+        jne     .bad
         or      al, al
         jz      .bad
         mov     al, cl
@@ -424,11 +566,29 @@ chs_lin:
         add     cx, ax
         cmp     cx, [cs:r_total]
         ja      .bad
-        add     ax, [cs:r_data]
         mov     bp, ax
         clc
         ret
 .bad:   stc
+        ret
+
+; lba2phys: AX = logical sector -> AX = linear sector on the card (block from the map). Keeps other registers.
+lba2phys:
+        push    bx
+        push    cx
+        push    dx
+        xor     dx, dx
+        mov     cx, SECTORS_PER_LBLK
+        div     cx                      ; AX = logical block, DX = sector in it
+        mov     bx, ax
+        mov     al, [cs:r_map + bx]
+        xor     ah, ah
+        mov     cl, 7
+        shl     ax, cl
+        add     ax, dx
+        pop     dx
+        pop     cx
+        pop     bx
         ret
 
 ; norm_buf: ES:BX -> w_seg:w_off with w_off < 16, so 512-byte steps never wrap a segment
@@ -461,9 +621,10 @@ i13_read:
         mov     di, [cs:w_off]
         mov     dx, [cs:r_port]
 .next:  mov     ax, bp
+        call    lba2phys
+        mov     si, ax
         mov     cl, 4
         shr     ax, cl                  ; BANK = sector >> 4 (bit 7 selects the chip)
-        mov     si, bp
         and     si, SECTORS_PER_BANK - 1
         mov     cl, 9
         shl     si, cl
@@ -536,23 +697,33 @@ i13_write:
         dec     dx
         mov     cx, 2
         call    wait_ticks              ; VPP settles
-.blk:   mov     ax, bp                  ; k = sectors of the request in this 64 KB block
-        and     ax, SECTORS_PER_BLOCK - 1
-        mov     cx, SECTORS_PER_BLOCK
-        sub     cx, ax
+.blk:   push    dx                      ; part = sectors of the request inside one logical block
+        mov     ax, bp
+        xor     dx, dx
+        mov     cx, SECTORS_PER_LBLK
+        div     cx
+        mov     [cs:w_l], al
+        mov     [cs:w_s], dx
+        sub     cx, dx
+        pop     dx
         mov     al, [cs:t_left]
         xor     ah, ah
         cmp     cx, ax
         jbe     .k
         mov     cx, ax
 .k:     mov     [cs:w_k], cx
+        push    bp
+        mov     ax, bp
+        call    lba2phys
+        mov     bp, ax                  ; physical sector of the part (contiguous inside the block)
         call    fits_inplace
         jc      .rewrite
         call    prog_inplace
         jmp     .chk
 .rewrite:
-        call    rewrite_block
-.chk:   jc      .fail
+        call    rewrite
+.chk:   pop     bp
+        jc      .fail
         mov     ax, [cs:w_k]
         add     bp, ax
         add     [cs:t_done], al
@@ -567,7 +738,7 @@ i13_write:
 .fail:  call    wr_off
         jmp     i13_fail
 
-; ---- write helpers. DX = port, BP = first sector of the request part, w_k = its length ----
+; ---- write helpers. DX = port, BP = first physical sector of the request part, w_k = its length ----
 wr_off: push    ax
         push    dx
         mov     dx, [cs:r_port]
@@ -831,27 +1002,49 @@ prog_erased:
         stc
         ret
 
-; rewrite_block: the request part needs an erase. Spare <- erase; spare <- block with the new sectors merged;
-; block <- erase; block <- spare. A power failure between the second erase and the end loses the block
-; (the spare still holds it, but nothing restores it automatically in this version).
-rewrite_block:
-        push    bp
-        mov     ax, bp
-        mov     cl, 7
-        shr     ax, cl
-        mov     [cs:w_blk], al
-        mov     al, [cs:r_spare]
+; rewrite: the request part needs an erase. Moves logical block w_l into the free block with the new sectors
+; merged; every 8th generation one more block moves, round-robin (wear leveling). CF = error, AH = BIOS code.
+rewrite:
+        call    move_block
+        jc      .ret
+        test    byte [cs:r_seq], RELOC_MASK
+        jnz     .ok
+        push    word [cs:w_k]
+        mov     al, [cs:w_l]
+        push    ax
+        mov     al, [cs:r_rr]
+        mov     [cs:w_l], al
+        inc     al
+        cmp     al, [cs:r_nl]
+        jb      .rr
+        xor     al, al
+.rr:    mov     [cs:r_rr], al
+        mov     word [cs:w_k], 0
+        call    move_block
+        pop     ax                      ; flags stay from move_block
+        mov     [cs:w_l], al
+        pop     word [cs:w_k]
+        ret
+.ok:    clc
+.ret:   ret
+
+; move_block: logical block w_l -> the free block. Sectors w_s .. w_s+w_k-1 come from the caller's buffer
+; (w_seg:w_off), the others from the current copy. The header with the next generation is written last, so
+; a power failure before it leaves the old copy in force; after it the new copy wins (higher generation).
+; The old copy becomes the free block. CF = error, AH = BIOS code.
+move_block:
+        push    bx
+        xor     bx, bx
+        mov     bl, [cs:w_l]
+        mov     al, [cs:r_map + bx]
+        mov     [cs:w_src], al
+        mov     al, [cs:r_free]
+        mov     [cs:w_dst], al
         call    erase_blk
         jc      .err
         xor     bx, bx
-.c1:    mov     al, [cs:w_blk]
-        call    blk_sector
-        mov     [cs:w_src], ax
-        mov     al, [cs:r_spare]
-        call    blk_sector
-        mov     [cs:w_dst], ax
-        mov     ax, [cs:w_src]
-        sub     ax, bp
+.sec:   mov     ax, bx
+        sub     ax, [cs:w_s]
         jb      .old
         cmp     ax, [cs:w_k]
         jae     .old
@@ -862,41 +1055,32 @@ rewrite_block:
         mov     si, [cs:w_off]
         mov     byte [cs:w_inv], 0FFh
         jmp     .prog
-.old:   mov     ax, [cs:w_src]
+.old:   mov     al, [cs:w_src]
+        call    blk_sector
         call    read_rbuf
         push    cs
         pop     ds
         mov     si, rbuf
         mov     byte [cs:w_inv], 0
-.prog:  mov     ax, [cs:w_dst]
+.prog:  mov     al, [cs:w_dst]
+        call    blk_sector
         call    prog_erased
         jc      .err
         inc     bx
-        cmp     bx, SECTORS_PER_BLOCK
-        jb      .c1
-
-        mov     al, [cs:w_blk]
-        call    erase_blk
+        cmp     bx, SECTORS_PER_LBLK
+        jb      .sec
+        call    write_hdr
         jc      .err
         xor     bx, bx
-        mov     byte [cs:w_inv], 0
-.c2:    mov     al, [cs:r_spare]
-        call    blk_sector
-        call    read_rbuf
-        push    cs
-        pop     ds
-        mov     si, rbuf
-        mov     al, [cs:w_blk]
-        call    blk_sector
-        call    prog_erased
-        jc      .err
-        inc     bx
-        cmp     bx, SECTORS_PER_BLOCK
-        jb      .c2
-        pop     bp
+        mov     bl, [cs:w_l]
+        mov     al, [cs:w_dst]
+        mov     [cs:r_map + bx], al
+        mov     al, [cs:w_src]
+        mov     [cs:r_free], al
+        pop     bx
         clc
         ret
-.err:   pop     bp
+.err:   pop     bx
         stc
         ret
 
@@ -907,6 +1091,60 @@ blk_sector:                             ; AL = block, BX = sector in block -> AX
         shl     ax, cl
         add     ax, bx
         pop     cx
+        ret
+
+; write_hdr: header of block w_dst for logical block w_l with generation r_seq + 1, VALID byte last.
+; CF = error, AH = BIOS code.
+write_hdr:
+        push    cx
+        push    si
+        push    di
+        push    es
+        add     word [cs:r_seq], 1
+        adc     word [cs:r_seq + 2], 0
+        mov     al, [cs:w_l]
+        mov     [cs:hdr + HDR_LBLK], al
+        not     al
+        mov     [cs:hdr + HDR_LBLK + 1], al
+        mov     ax, [cs:r_seq]
+        mov     [cs:hdr + HDR_GEN], ax
+        not     ax
+        mov     [cs:hdr + HDR_GEN + 4], ax
+        mov     ax, [cs:r_seq + 2]
+        mov     [cs:hdr + HDR_GEN + 2], ax
+        not     ax
+        mov     [cs:hdr + HDR_GEN + 6], ax
+        mov     al, [cs:w_dst]
+        mov     cl, 3
+        shl     al, cl
+        add     al, HDR_BANK
+        mov     es, [cs:r_winseg]
+        cli
+        out     dx, al
+        mov     di, HDR_WOFF
+        mov     si, hdr
+        mov     cx, HDR_LEN
+.b:     mov     al, [cs:si]
+        inc     si
+        cmp     al, 0FFh
+        je      .skip
+        call    prog_byte
+        jc      .err
+.skip:  inc     di
+        loop    .b
+        call    bank0
+        pop     es
+        pop     di
+        pop     si
+        pop     cx
+        clc
+        ret
+.err:   call    bank0
+        pop     es
+        pop     di
+        pop     si
+        pop     cx
+        stc
         ret
 
 ; ---- INT 19h: A: first, then the flash disk, then the original bootstrap ----
@@ -944,31 +1182,40 @@ int19:  sti
 
 ; ---- resident data ----
 desc_sig:       db      'ISAFLDSK'
+hdr:            db      'FLBK', 0FFh, 0FFh, 0FFh, 0FFh  ; block header image (HDR_*), VALID = 0 is the last byte
+                times 8 db 0FFh
+                db      0
 r_port          dw      0
 r_winseg        dw      0
 r_cyls          dw      0
 r_heads         dw      0
 r_spt           dw      0
 r_total         dw      0
-r_data          dw      0
+r_seq           dd      0
 r_old13         dd      0
 r_old19         dd      0
 w_seg           dw      0
 w_off           dw      0
 w_k             dw      0
-w_src           dw      0
-w_dst           dw      0
+w_s             dw      0
 w_t0            dw      0
 r_drive         db      0
 r_status        db      0
 r_valid         db      0
-r_spare         db      0
+r_nl            db      0
+r_np            db      0
+r_free          db      0
+r_rr            db      0
+m_p             db      0
 t_left          db      0
 t_done          db      0
 t_sec           db      0
 t_head          db      0
-w_blk           db      0
+w_l             db      0
+w_src           db      0
+w_dst           db      0
 w_inv           db      0
+r_map:          times 32 db 0FFh
 rbuf:           times SECTOR_SIZE db 0
 res_end:
 
