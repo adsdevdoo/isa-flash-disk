@@ -62,7 +62,7 @@ def gnd_zone(b, layer):
     z.SetLayer(layer)
     z.SetNet(b.FindNet("GND"))
     z.SetLocalClearance(p.FromMM(0.25))
-    z.SetMinThickness(p.FromMM(0.25))
+    z.SetMinThickness(p.FromMM(0.2))
     z.SetPadConnection(p.ZONE_CONNECTION_THERMAL)
     z.SetThermalReliefGap(p.FromMM(0.3))
     z.SetThermalReliefSpokeWidth(p.FromMM(0.4))
@@ -73,6 +73,69 @@ def gnd_zone(b, layer):
     for x, y in ((0, 0), (W, 0), (W, BODY_BOTTOM - 0.4), (0, BODY_BOTTOM - 0.4)):
         o.Append(V(x, y))
     b.Add(z)
+
+
+def stitch_gnd(b, avoid=(), pitch=3.0, via_d=0.8, via_drill=0.4, clearance=0.25):
+    """Tracks cut the GND pours into islands that get removed. Drop GND vias on a grid wherever they clear
+    every other-net object on both layers, refill, and keep only vias that landed in GND fill on both sides,
+    so the islands are tied to the other layer."""
+    gnd = b.FindNet("GND")
+    segs, discs, rects = [], [], []
+    for t in b.GetTracks():
+        if t.GetNetCode() == gnd.GetNetCode():
+            continue
+        if t.GetClass() == "PCB_VIA":
+            c = t.GetPosition()
+            discs.append((p.ToMM(c.x) - OX, p.ToMM(c.y) - OY, p.ToMM(t.GetWidth(p.F_Cu)) / 2))
+        else:
+            s, e = t.GetStart(), t.GetEnd()
+            segs.append(((p.ToMM(s.x) - OX, p.ToMM(s.y) - OY), (p.ToMM(e.x) - OX, p.ToMM(e.y) - OY),
+                         p.ToMM(t.GetWidth()) / 2))
+    for f in b.GetFootprints():
+        for pad in f.Pads():
+            if pad.GetNetCode() == gnd.GetNetCode() and not pad.HasHole():
+                continue
+            bb = pad.GetBoundingBox()
+            rects.append((p.ToMM(bb.GetLeft()) - OX, p.ToMM(bb.GetTop()) - OY,
+                          p.ToMM(bb.GetRight()) - OX, p.ToMM(bb.GetBottom()) - OY))
+    rects.extend(avoid)  # keep stitching vias out of silkscreen text
+    reach = via_d / 2 + clearance
+    added = []
+    y = 2.0
+    while y < BODY_BOTTOM - 1.5:
+        x = 2.0
+        while x < W - 2.0:
+            ok = all(not (r[0] - reach < x < r[2] + reach and r[1] - reach < y < r[3] + reach) for r in rects)
+            ok = ok and all((x - cx) ** 2 + (y - cy) ** 2 >= (reach + cr) ** 2 for cx, cy, cr in discs)
+            if ok:
+                for a, z, hw in segs:
+                    if min(a[0], z[0]) - 2 > x or max(a[0], z[0]) + 2 < x or min(a[1], z[1]) - 2 > y or max(a[1], z[1]) + 2 < y:
+                        continue
+                    if seg_dist((x, y), (x, y), a, z) < reach + hw:
+                        ok = False
+                        break
+            if ok:
+                v = p.PCB_VIA(b)
+                v.SetPosition(V(x, y))
+                v.SetWidth(p.FromMM(via_d))
+                v.SetDrill(p.FromMM(via_drill))
+                v.SetNet(gnd)
+                b.Add(v)
+                added.append(v)
+                discs.append((x, y, via_d / 2))
+            x += pitch
+        y += pitch
+    p.ZONE_FILLER(b).Fill(b.Zones())
+    zones = {z.GetLayer(): z for z in b.Zones() if not z.GetIsRuleArea()}
+    kept = 0
+    for v in added:
+        pos = v.GetPosition()
+        if all(zones[layer].HitTestFilledArea(layer, pos) for layer in (p.F_Cu, p.B_Cu)):
+            kept += 1
+        else:
+            b.Remove(v)
+    p.ZONE_FILLER(b).Fill(b.Zones())
+    print("GND stitching: %d candidate vias, %d kept" % (len(added), kept))
 
 
 KICAD_3D = pathlib.Path(r"C:/Program Files/KiCad/9.0/share/kicad/3dmodels")
@@ -208,14 +271,32 @@ class SilkPlacer:
     """Puts each text at the first candidate spot that clears all pads, all courtyards (so designators stay
     readable after assembly), the texts already placed, the card edge and the contact tab."""
 
-    def __init__(self, fps):
+    def __init__(self, fps, vias, bottom=False):
         self.obst, self.texts = [], []
         for f in fps.values():
             for pad in f.Pads():
+                if bottom and not (pad.HasHole() or pad.IsOnLayer(p.B_Cu)):
+                    continue
                 self.obst.append(self.rect(pad.GetBoundingBox(), 0.25))
             crt = f.GetCourtyard(p.F_CrtYd)
-            if crt.OutlineCount():
+            if crt.OutlineCount() and not bottom:
                 self.obst.append(self.rect(crt.BBox(), 0.1))
+        for v in vias:
+            self.obst.append(self.rect(v.GetBoundingBox(), 0.2))
+
+    def block(self, lines, anchors, h=TEXT_SIZE, step=1.65):
+        """Place several lines as one left-aligned block at the first anchor where every line fits."""
+        for ax, ay in anchors:
+            rects = []
+            wmax = max(self.size(s, h)[0] for s in lines)
+            for i, s in enumerate(lines):
+                if s:
+                    hh = self.size(s, h)[1]
+                    rects.append((ax, ay + i * step - hh / 2, ax + wmax, ay + i * step + hh / 2))
+            if all(self.free(r) for r in rects):
+                self.texts.extend(rects)
+                return ax, ay
+        raise RuntimeError("no room for block %r" % lines[0])
 
     @staticmethod
     def rect(bb, m=0.0):
@@ -261,7 +342,8 @@ class SilkPlacer:
 
 
 def place_silkscreen(b, fps):
-    sp = SilkPlacer(fps)
+    vias = []  # vias are tented; silkscreen may cross them
+    sp = SilkPlacer(fps, vias)
     order = sorted(fps, key=lambda r: (not r.startswith("U"), not r.startswith("SW"), r))
     for ref in order:
         f = fps[ref]
@@ -302,8 +384,39 @@ def place_silkscreen(b, fps):
         x, y = sp.place(s, cands, h)
         text(b, s, x, y, h, bold=(h > TEXT_SIZE))
         y += h + 0.9
-    text(b, "ISA FLASH DISK rev A", W / 2, 47.0, 1.5, layer=p.B_SilkS, bold=True)
-    text(b, "github.com/adsdevdoo/isa-flash-disk", W / 2, 49.5, TEXT_SIZE, layer=p.B_SilkS)
+    # Address bit next to every switch position (top side).
+    for ref, bits in (("SW1", range(13, 18)), ("SW2", range(3, 9))):
+        f = fps[ref]
+        x0 = sp.box(f)[0]
+        for n, bit in enumerate(bits, 1):
+            pad = [pd for pd in f.Pads() if pd.GetNumber() == str(n)][0]
+            py = p.ToMM(pad.GetPosition().y) - OY
+            label = "A%d" % bit
+            w, _ = sp.size(label, TEXT_SIZE)
+            x, y = sp.place(label, [(x0 - 0.3 - w / 2, py)])
+            text(b, label, x, y)
+    # Bottom side: title and the full switch tables (text mirrored, reads from the bottom).
+    spb = SilkPlacer(fps, vias, bottom=True)
+    for s_, h_, cy in (("ISA FLASH DISK rev A", 1.5, 70.0), ("github.com/adsdevdoo/isa-flash-disk", TEXT_SIZE, 72.6)):
+        x_, y_ = spb.place(s_, [(cx, cy + d) for d in (0, 2, 4, -2, -4) for cx in (W / 2, W / 2 - 10, W / 2 + 10)], s_ and h_)
+        text(b, s_, x_, y_, h_, layer=p.B_SilkS, bold=(h_ > TEXT_SIZE))
+    bottom_lines = ["SW1 MEM WINDOW   ON=0 OFF=1", "pos  1   2   3   4   5",
+                    "bit  A13 A14 A15 A16 A17", "C800 ON  ON  OFF ON  ON",
+                    "CC00 ON  OFF OFF ON  ON   default", "D000 ON  ON  ON  OFF ON",
+                    "E000 ON  ON  ON  ON  OFF", "",
+                    "SW2 I/O PORT     ON=0 OFF=1", "pos  1   2   3   4   5   6",
+                    "bit  A3  A4  A5  A6  A7  A8", "280  ON  ON  ON  ON  OFF ON",
+                    "2A0  ON  ON  OFF ON  OFF ON   default", "300  ON  ON  ON  ON  ON  OFF", "",
+                    "JP1 WRITE: open = flash write protected"]
+    # Mirrored text: the block is laid out from its right edge on the board drawing.
+    widths = [spb.size(s, TEXT_SIZE)[0] for s in bottom_lines]
+    anchors = [(ax, ay) for ay in [8.0 + 0.5 * k for k in range(0, 90)] for ax in (3.0, 5.0, 8.0, 12.0, 20.0, 30.0)]
+    ax, ay = spb.block([s for s in bottom_lines], anchors)
+    for i, s in enumerate(bottom_lines):
+        if s:
+            # Mirrored + left-justified: the text starts at the anchor and runs towards -x on the drawing.
+            text(b, s, ax + max(widths) - 0.15, ay + i * 1.65, TEXT_SIZE, layer=p.B_SilkS, justify="left")
+    return sp.texts + spb.texts
 
 
 def merge_project_rules():
@@ -345,11 +458,11 @@ def main():
     for item in list(fps["J1"].GraphicalItems()):
         if item.GetLayer() in (p.F_SilkS, p.B_SilkS):
             fps["J1"].Remove(item)
-    place_silkscreen(b, fps)
-
     for layer in (p.F_Cu, p.B_Cu):
         gnd_zone(b, layer)
     p.ZONE_FILLER(b).Fill(b.Zones())
+    silk_rects = place_silkscreen(b, fps)
+    stitch_gnd(b, avoid=silk_rects)
 
     b.SetFileName(str(BOARD))
     p.SaveBoard(str(BOARD), b, True)
