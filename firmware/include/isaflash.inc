@@ -19,6 +19,7 @@ WINDOW_LAST     equ 0F400h
 ; ---- Flash layout (linear addresses on the card) ----
 SECTOR_SIZE     equ 512
 SECTORS_PER_BANK equ WINDOW_SIZE / SECTOR_SIZE  ; 16, so BANK register = linear sector >> 4
+SECTORS_PER_BLOCK equ 128                       ; 64 KB erase block
 ROM_SIZE        equ 2000h       ; option ROM: linear 000000h..001FFFh = bank 0
 DESC_LINEAR     equ 2000h       ; disk descriptor: bank 1, offset 0
 DATA_LINEAR     equ 10000h      ; disk data: from erase block 1
@@ -35,13 +36,17 @@ ROM_SIGNATURE   equ 'ISAFLASH'
 
 ; ---- Disk descriptor (512 bytes at DESC_LINEAR) ----
 DESC_SIG        equ 00h         ; 'ISAFLDSK'
-DESC_VERSION    equ 08h         ; dw 1
+DESC_VERSION    equ 08h         ; dw 2 (format 2: data stored inverted, spare block)
 DESC_CHIPS      equ 0Ah         ; db 1 or 2
 DESC_CYLS       equ 0Ch         ; dw
 DESC_HEADS      equ 0Eh         ; dw
 DESC_SPT        equ 10h         ; dw
 DESC_TOTAL      equ 12h         ; dw total data sectors (<= 3968)
 DESC_DATA       equ 14h         ; dw first data sector (linear sector number, 128)
+DESC_SPARE      equ 16h         ; db spare 64 KB block used to rewrite a block (last block of the flash)
+DESC_FORMAT     equ 2           ; disk format version
+; Format 2: the disk area is stored inverted (stored byte = NOT data). Erased flash (FFh) reads as zeros,
+; so writing into free space only clears bits and is programmed in place without an erase.
 DESC_CHECKSUM   equ 1FFh        ; byte: all 512 bytes sum to 0 (mod 256)
 DESC_SIGNATURE  equ 'ISAFLDSK'
 DISK_HEADS      equ 4

@@ -121,6 +121,18 @@ class Card:
     def image(self):
         return b"".join(bytes(f.mem) for f in self.flash)
 
+    def view(self):
+        """What the 8 KB window shows now (same as win_read for every offset, built with slices)."""
+        chip, base = self.bank >> 7, (self.bank & 0x7F) << 13
+        if chip >= len(self.flash):
+            return bytes([0xFF]) * 0x2000
+        f = self.flash[chip]
+        if f.mode == "array":
+            return bytes(f.mem[base:base + 0x2000])
+        if f.mode == "id":
+            return bytes([0x89, 0xA2]) * 0x1000
+        return bytes([f.sr]) * 0x2000
+
 
 class PC:
     def __init__(self, card, files_dir, keys=b"Y"):
@@ -172,7 +184,7 @@ class PC:
         if not force and key == self.view_key:
             return
         self.view_key = key
-        self.uc.mem_write(self.card.window * 16, bytes(self.card.win_read(i) for i in range(0x2000)))
+        self.uc.mem_write(self.card.window * 16, self.card.view())
 
     def _in(self, uc, port, size, user):
         return 0xFF
@@ -377,7 +389,9 @@ class PC:
         self.w(UC_X86_REG_EFLAGS, IF | 0x0002)
         self.console = []
         self.refresh_window(force=True)
-        self.run(seg, off, timeout_s=30)
+        self.run(seg, off, timeout_s=60)
+        if self.stopped_by is None:
+            raise RuntimeError("far call %04X:%04X did not return (timeout?)" % (seg, off))
         return "".join(self.console)
 
     def call_int(self, n, regs, stack=(0x0030, 0x0400)):
@@ -391,5 +405,8 @@ class PC:
             self.w(reg, val)
         self.w(UC_X86_REG_EFLAGS, IF | 0x0002)
         self.console = []
-        self.run(code_seg, code_off, timeout_s=60)
+        self.run(code_seg, code_off, timeout_s=600)
+        if self.stopped_by is None:
+            raise RuntimeError("int %02Xh did not return (timeout?), at %04X:%04X"
+                               % (n, self.r(UC_X86_REG_CS), self.r(UC_X86_REG_IP)))
         return self.stopped_by

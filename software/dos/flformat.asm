@@ -3,7 +3,9 @@
 ;   romfile  FLASHROM.BIN (8192 bytes); the card's I/O port is written into it and the checksum fixed
 ;   /E       also erase the whole disk area (every data block becomes FFh)
 ;   /Y       do not ask for confirmation
-; Geometry: 4 heads, 16 sectors per track; 1 chip = 30 cylinders (1920 sectors), 2 chips = 62 (3968 sectors).
+; Geometry: 4 heads, 16 sectors per track; 1 chip = 28 cylinders (1792 sectors), 2 chips = 60 (3840 sectors).
+; Disk format 2: data stored inverted, the last 64 KB block of the flash is the spare block for rewrites.
+; A disk written by version 1.0 (format 1) must be erased (/E) and written again.
 ; Needs the WRITE jumper JP1.
 
         cpu     8086
@@ -93,13 +95,18 @@ start:  cld
         mov     si, desc_sig
         mov     cx, 8
         rep     movsb
-        mov     word [es:DESC_LINEAR + DESC_VERSION], 1
+        mov     word [es:DESC_LINEAR + DESC_VERSION], DESC_FORMAT
         mov     al, [chips]
         mov     [es:DESC_LINEAR + DESC_CHIPS], al
+        mov     cl, 4
+        shl     al, cl                  ; 16 blocks per chip
+        dec     al
+        mov     [es:DESC_LINEAR + DESC_SPARE], al  ; spare = last block
+        mov     al, [chips]
         xor     ah, ah
         mov     cl, 11
         shl     ax, cl                  ; 2048 sectors per chip
-        sub     ax, DATA_FIRST_SECTOR
+        sub     ax, DATA_FIRST_SECTOR + SECTORS_PER_BLOCK  ; minus block 0 and the spare block
         mov     [es:DESC_LINEAR + DESC_TOTAL], ax
         mov     [total], ax
         mov     cl, 6
@@ -201,7 +208,7 @@ cyls            dw      0
 blk             db      0
 nblk            db      0
 desc_sig:       db      'ISAFLDSK'
-msg_banner:     db      'FLFORMAT 1.0 - ISA Flash Disk', 13, 10, '$'
+msg_banner:     db      'FLFORMAT 1.1 - ISA Flash Disk', 13, 10, '$'
 msg_usage:      db      'Usage: FLFORMAT romfile [/E] [/Y] [/M:seg] [/P:port]', 13, 10
                 db      '  romfile  FLASHROM.BIN', 13, 10
                 db      '  /E       also erase the whole disk area', 13, 10

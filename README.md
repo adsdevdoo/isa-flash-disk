@@ -17,7 +17,7 @@
 | 2–3. Схема карты | 1–2 микросхемы, банки, защита записи | схема rev A: ERC 0, нетлист сверен |
 | 5. Плата | разводка, DRC, Gerber | **rev A разведена: DRC 0, соответствие схеме 0 расхождений** |
 | 2. Прототип | изготовление, чтение, адресация, запись | не начат |
-| 4. Программы | Option ROM, FLINFO/FLREAD/FLWRITE/FLFORMAT, mkdisk | **v1.0: 81 проверка в эмуляторе, на железе нет** |
+| 4. Программы | Option ROM, FLINFO/FLREAD/FLWRITE/FLFORMAT, mkdisk | **v1.1, чтение и запись из DOS: 112 проверок в эмуляторе, на железе нет** |
 
 **Статус: инженерный прототип rev A, не испытан в железе.** Плата 104.14 × 100 мм под планку Keystone 9202,
 архив для JLCPCB — [hardware/gerber/](hardware/gerber/), параметры заказа и границы проверки —
@@ -54,6 +54,34 @@
 
 ![Низ платы rev A (CAD-рендер)](images/isa-flash-disk-bottom.png)
 
+## Заказ платы (на примере JLCPCB)
+
+Загружается готовый архив [hardware/gerber/isa-flash-disk-revA-jlcpcb.zip](hardware/gerber/isa-flash-disk-revA-jlcpcb.zip),
+в Gerber для этого ничего менять не нужно. Краевой разъём требует двух вещей:
+
+- **Контур разъёма** — выступ с ламелями и уступы по бокам — уже нарисован в слое Edge.Cuts. Его фрезеруют
+  вместе с остальным контуром платы, отдельной опции для этого нет.
+- **Фаска (скос) края с ламелями**, чтобы карта входила в слот, не сдирая контакты. Это отдельная опция заказа
+  вместе с золочением ламелей.
+
+| Поле формы заказа | Значение |
+|---|---|
+| Base Material / Layers | FR-4 / 2 |
+| PCB Thickness | 1.6 mm (стандарт ISA) |
+| Outer Copper Weight | 1 oz |
+| Surface Finish | **ENIG** — только с ним ламели будут золотыми; при HASL они лужёные |
+| Gold Fingers | **Yes** — открывает выбор фаски |
+| Угол фаски | **30°** (рекомендация JLCPCB) или 45° — оба помещаются в отступ ламелей |
+| Delivery Format / Panel | одиночные платы, **без панелизации V-cut**: в панели разъём оказался бы в середине и фаску не сделать |
+
+Справка JLCPCB ([Gold Fingers](https://jlcpcb.com/help/article/jlcpcb-gold-fingers), ноябрь 2026): фаска делается
+на платах не меньше 50 × 50 мм (у нас 104 × 100 мм); в зоне фаски не должно быть меди; между ламелями и краем
+нужен запас, точного числа справка не даёт. На плате ламели заканчиваются в 1.0 мм от края, а меди в нижних
+0.9 мм нет. При толщине 1.6 мм и остатке кромки 0.5 мм фаска 30° уходит вглубь примерно на 0.95 мм, 45° —
+на 0.55 мм. Названия полей формы JLCPCB иногда меняет, поэтому перед оплатой проверьте превью и параметры
+заказа. В примечание к заказу можно написать: «Gold fingers on the bottom edge (8-bit ISA connector), bevel 30°».
+Остальные параметры и что проверено — в [docs/manufacturing.md](docs/manufacturing.md).
+
 ## Документация
 
 | Файл | Что внутри |
@@ -64,7 +92,7 @@
 | [docs/architecture.md](docs/architecture.md) | сравнение вариантов, выбранная схема, защита, VPP |
 | [docs/isa-interface.md](docs/isa-interface.md) | шина ISA: контакты, циклы, питание, Option ROM |
 | [docs/memory-map.md](docs/memory-map.md) | адреса окна и портов, регистры, разметка флеш |
-| [docs/programming.md](docs/programming.md) | запись и стирание из DOS |
+| [docs/programming.md](docs/programming.md) | Option ROM, утилиты DOS, первая запись ПЗУ, запись на диск из DOS |
 | [docs/testing.md](docs/testing.md) | замеры и проверки |
 | [docs/assembly.md](docs/assembly.md) | сборка карты |
 | [docs/manufacturing.md](docs/manufacturing.md) | заказ платы в JLCPCB, что проверено |
@@ -78,7 +106,7 @@
 docs/          документация, даташиты, руководства
 hardware/      kicad/, gerber/, bom/
 firmware/      option-rom/ — Option ROM (NASM)
-software/      dos/ — утилиты DOS (Open Watcom C)
+software/      dos/ — утилиты DOS (NASM)
 tools/         вспомогательные скрипты для сборки и проверки
 ```
 

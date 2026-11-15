@@ -104,6 +104,18 @@ start:  cld
         shr     ax, 1
         call    print_dec
         PRINT   msg_disk4
+        mov     ax, [tmpbuf + DESC_VERSION]
+        call    print_dec
+        cmp     ax, DESC_FORMAT
+        jne     .oldfmt
+        PRINT   msg_disk5
+        mov     al, [tmpbuf + DESC_SPARE]
+        xor     ah, ah
+        call    print_dec
+        call    print_crlf
+        jmp     .jumper
+.oldfmt:
+        PRINT   msg_oldfmt
         jmp     .jumper
 .nodesc:
         PRINT   msg_nodesc
@@ -151,7 +163,7 @@ print_id:
 %include "flashlib.inc"
 
 desc_sig:       db      'ISAFLDSK'
-msg_banner:     db      'FLINFO 1.0 - ISA Flash Disk', 13, 10, '$'
+msg_banner:     db      'FLINFO 1.1 - ISA Flash Disk', 13, 10, '$'
 msg_usage:      db      'Usage: FLINFO [/J] [/M:seg] [/P:port]', 13, 10
                 db      '  /J  test the WRITE jumper JP1', 13, 10, '$'
 msg_rom1:       db      'Option ROM: version $'
@@ -166,7 +178,9 @@ msg_unknown:    db      ' (unknown)', 13, 10, '$'
 msg_disk1:      db      'Disk: C/H/S $'
 msg_disk2:      db      ', $'
 msg_disk3:      db      ' sectors ($'
-msg_disk4:      db      ' KB)', 13, 10, '$'
+msg_disk4:      db      ' KB), format $'
+msg_disk5:      db      ', spare block $'
+msg_oldfmt:     db      ' (old: run FLFORMAT /E, write the disk again)', 13, 10, '$'
 msg_nodesc:     db      'Disk: no descriptor (run FLFORMAT)', 13, 10, '$'
 msg_baddesc:    db      'Disk: descriptor checksum error', 13, 10, '$'
 msg_jp_open:    db      'WRITE jumper JP1: open (VPP low, flash protected)', 13, 10, '$'

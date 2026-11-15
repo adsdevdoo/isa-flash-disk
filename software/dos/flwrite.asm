@@ -1,7 +1,8 @@
 ; FLWRITE.COM - write a file to the flash, block by block, with verification.
 ; Usage: FLWRITE file [/D] [/O:block] [/Y] [/M:seg] [/P:port]
 ;   /O  start at that 64 KB block of the area (hex), for an image written in parts
-;   /D  the file is a hard disk image: written from 64 KB on, the ROM and descriptor block stays as it is
+;   /D  the file is a hard disk image: written from 64 KB on, the ROM and descriptor block stays as it is;
+;       stored inverted (disk format 2) and never into the spare block (the last one)
 ;   /Y  do not ask for confirmation
 ; Without /D the file is a whole flash image from address 0 (ROM, descriptor and disk).
 ; Needs the WRITE jumper JP1. Identical 64 KB blocks are skipped; a block is erased only when a bit must
@@ -70,7 +71,7 @@ start:  cld
         test    byte [opt_flags], OPT_DISK
         jz      .whole
         mov     bl, DATA_LINEAR / BLOCK_SIZE
-        dec     al
+        sub     al, 2                   ; block 0 and the spare block
 .whole: mov     dl, [opt_off]          ; /O: start that many blocks further
         add     bl, dl
         sub     al, dl
@@ -107,12 +108,15 @@ start:  cld
 .vpp:   mov     al, [first]
         mov     [block], al
 
-.blk:   ; buffer = FFh, then up to 64 KB from the file
+.blk:   ; buffer = FFh (disk image: 00h, inverted below), then up to 64 KB from the file
         push    es
         mov     es, [bufseg]
         xor     di, di
         mov     ax, 0FFFFh
-        mov     cx, 8000h
+        test    byte [opt_flags], OPT_DISK
+        jz      .fill
+        xor     ax, ax
+.fill:  mov     cx, 8000h
         rep     stosw
         pop     es
         push    ds
@@ -132,6 +136,23 @@ start:  cld
         jc      .rerr
 .readok:
         pop     ds
+        test    byte [opt_flags], OPT_DISK
+        jz      .stored
+        push    ds
+        push    es
+        mov     ax, [bufseg]
+        mov     ds, ax
+        mov     es, ax
+        xor     si, si
+        xor     di, di
+        mov     cx, 8000h
+.inv:   lodsw
+        not     ax                      ; disk format 2: stored byte = NOT data
+        stosw
+        loop    .inv
+        pop     es
+        pop     ds
+.stored:
 
         PRINT   msg_block
         mov     al, [block]
@@ -186,7 +207,7 @@ size_hi         dw      0
 nblocks         dw      0
 first           db      0
 block           db      0
-msg_banner:     db      'FLWRITE 1.0 - ISA Flash Disk', 13, 10, '$'
+msg_banner:     db      'FLWRITE 1.1 - ISA Flash Disk', 13, 10, '$'
 msg_usage:      db      'Usage: FLWRITE file [/D] [/O:block] [/Y] [/M:seg] [/P:port]', 13, 10
                 db      '  /D  hard disk image, written from 64 KB on', 13, 10
                 db      '  /O  start at that 64 KB block (hex), for split images', 13, 10

@@ -4,15 +4,18 @@
 Usage:
   python tools/mkdisk.py DISK.IMG --chips 2 [--boot DOSBOOT.IMG] [--add FILE ...] [--label NAME] [--split KB]
 
-Geometry matches the descriptor written by FLFORMAT: 4 heads, 16 sectors per track,
-1 chip = 30 cylinders (1920 sectors), 2 chips = 62 cylinders (3968 sectors).
+Geometry matches the descriptor written by FLFORMAT (disk format 2): 4 heads, 16 sectors per track,
+1 chip = 28 cylinders (1792 sectors), 2 chips = 60 cylinders (3840 sectors). The image is a plain disk image
+(PC emulators can mount it); FLWRITE /D stores it inverted on the card, FLREAD /D inverts it back.
 Layout: MBR (dist/MBR.BIN, partition table filled here), one active FAT12 partition from C/H/S 0/1/1
 (LBA 16) to the end of the disk, 4 sectors per cluster, 512 root entries.
 
 --boot  a bootable DOS floppy image (raw .IMG with a FAT12 file system). Its boot sector code is used with
         this disk's BPB, and the system files are copied first and contiguous, as the DOS boot sector expects:
         IO.SYS + MSDOS.SYS (MS-DOS 4.0-6.22), IBMBIO.COM + IBMDOS.COM (PC DOS 4+), or KERNEL.SYS (FreeDOS);
-        COMMAND.COM follows. DOS 3.x boot sectors (no extended BPB) are refused: not supported.
+        COMMAND.COM follows. DOS 3.x boot sectors (no extended BPB): EXPERIMENTAL, not tried on a real DOS 3.x:
+        only the DOS 3.x BPB (0Bh..1Dh, 16-bit hidden sectors) is patched and the boot drive byte at 1FDh is
+        set to 80h; the boot code is left as it is.
         Without --boot the partition gets dist/VBRSTUB.BIN, which only prints "no operating system".
 --add   more files for the root directory (8.3 names).
 --split write DISK.001, DISK.002, ... of at most KB kilobytes each (multiple of 64) for floppies and print the
@@ -106,7 +109,7 @@ def dos_datetime(ts):
 
 
 def build(args):
-    total = args.chips * 2048 - 128
+    total = args.chips * 2048 - 256     # minus block 0 (ROM, descriptor) and the spare block
     psecs = total - PART_START
     spf, root_secs, clusters = fat_layout(psecs)
     img = bytearray(total * 512)
@@ -121,20 +124,32 @@ def build(args):
     if args.boot:
         floppy = Fat12Image(open(args.boot, "rb").read())
         vbr = bytearray(floppy.d[0:512])
-        if vbr[0x26] != 0x29:
-            raise SystemExit("--boot: boot sector without extended BPB (DOS 3.x) is not supported")
+        dos3 = vbr[0x26] != 0x29
     else:
+        dos3 = False
         floppy = None
         vbr = bytearray(open(os.path.join(DIST, "VBRSTUB.BIN"), "rb").read())
         vbr[3:11] = b"ISAFLASH"
-    struct.pack_into("<HBHBHHBHHHII", vbr, 0x0B, 512, SPC, RESERVED, NFATS, ROOT_ENTRIES,
-                     psecs if psecs < 0x10000 else 0, MEDIA, spf, SPT, HEADS, PART_START, 0)
-    vbr[0x24] = 0x80                     # drive number
-    vbr[0x25] = 0
-    vbr[0x26] = 0x29
-    struct.pack_into("<I", vbr, 0x27, 0x15A0F1A5)
-    vbr[0x2B:0x36] = args.label.upper().ljust(11)[:11].encode("ascii")
-    vbr[0x36:0x3E] = b"FAT12   "
+    if dos3:
+        # DOS 3.x BPB ends at 1Dh; 1Eh.. belongs to the boot code. The boot drive is the byte at 1FDh.
+        jmp = vbr[1] + 2 if vbr[0] == 0xEB else 0
+        if jmp < 0x1E:
+            raise SystemExit("--boot: unknown boot sector (jump to %02Xh)" % jmp)
+        struct.pack_into("<HBHBHHBHHHH", vbr, 0x0B, 512, SPC, RESERVED, NFATS, ROOT_ENTRIES,
+                         psecs, MEDIA, spf, SPT, HEADS, PART_START)
+        if vbr[0x1FD] not in (0x00, 0x80):
+            raise SystemExit("--boot: DOS 3.x boot sector without a drive byte at 1FDh")
+        vbr[0x1FD] = 0x80
+        print("boot sector  DOS 3.x (no extended BPB): EXPERIMENTAL, check it on the target machine")
+    else:
+        struct.pack_into("<HBHBHHBHHHII", vbr, 0x0B, 512, SPC, RESERVED, NFATS, ROOT_ENTRIES,
+                         psecs if psecs < 0x10000 else 0, MEDIA, spf, SPT, HEADS, PART_START, 0)
+        vbr[0x24] = 0x80                 # drive number
+        vbr[0x25] = 0
+        vbr[0x26] = 0x29
+        struct.pack_into("<I", vbr, 0x27, 0x15A0F1A5)
+        vbr[0x2B:0x36] = args.label.upper().ljust(11)[:11].encode("ascii")
+        vbr[0x36:0x3E] = b"FAT12   "
     base = PART_START * 512
     img[base:base + 512] = vbr
 

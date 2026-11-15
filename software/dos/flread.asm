@@ -1,6 +1,7 @@
 ; FLREAD.COM - copy the flash (or only the disk area) to a file.
 ; Usage: FLREAD file [/D] [/M:seg] [/P:port]
-;   /D  disk area only (from 64 KB on): the result is a hard disk image for FLWRITE /D
+;   /D  disk area only (from 64 KB on, without the spare block, inverted back): a hard disk image for
+;       FLWRITE /D and for PC emulators
 
         cpu     8086
         bits    16
@@ -31,6 +32,10 @@ start:  cld
         xor     ah, ah
         mov     cl, 7
         shl     ax, cl                  ; 128 banks per chip
+        test    byte [opt_flags], OPT_DISK
+        jz      .lastok
+        sub     ax, BANKS_PER_BLOCK     ; the spare block is not part of the disk
+.lastok:
         mov     [last], ax
 
         mov     dx, fname
@@ -52,7 +57,15 @@ start:  cld
         xor     si, si
         mov     di, tmpbuf
         mov     cx, WINDOW_SIZE / 2
-        rep     movsw
+        test    byte [cs:opt_flags], OPT_DISK
+        jz      .raw
+.inv:   lodsw
+        not     ax                      ; disk format 2 is stored inverted
+        stosw
+        loop    .inv
+        jmp     .copied
+.raw:   rep     movsw
+.copied:
         pop     es
         pop     ds
         xor     al, al
@@ -97,7 +110,7 @@ usage:  PRINT   msg_usage
 bank            dw      0
 last            dw      0
 handle          dw      0
-msg_banner:     db      'FLREAD 1.0 - ISA Flash Disk', 13, 10, '$'
+msg_banner:     db      'FLREAD 1.1 - ISA Flash Disk', 13, 10, '$'
 msg_usage:      db      'Usage: FLREAD file [/D] [/M:seg] [/P:port]', 13, 10
                 db      '  /D  disk area only (hard disk image)', 13, 10, '$'
 msg_create:     db      'Cannot create the file.', 13, 10, '$'

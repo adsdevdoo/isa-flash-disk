@@ -28,3 +28,6 @@ hardware/kicad/build/
 
 # Local NASM listings
 firmware/option-rom/build/
+
+# Python
+__pycache__/
