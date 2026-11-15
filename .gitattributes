@@ -12,3 +12,14 @@
 sym-lib-table text eol=lf
 fp-lib-table text eol=lf
 .generated.sha256 text eol=lf
+*.step binary
+*.wrl binary
+*.gtl -text
+*.gbl -text
+*.gts -text
+*.gbs -text
+*.gto -text
+*.gbo -text
+*.gm1 -text
+*.drl -text
+*.gbrjob -text

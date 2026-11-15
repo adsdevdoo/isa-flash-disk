@@ -344,7 +344,8 @@ class Schematic:
             ref_xy, val_xy, just = (right + 1.27, y - 1.27), (right + 1.27, y + 1.27), "left"
         else:
             ref_xy, val_xy, just = (x + 2.54, top - 1.5), (x + 2.54, bottom + 2.5), None
-        self._symbol_instance(lib_id, ref, x, y, 0, unit, value, footprint, datasheet, fields or {}, True, False,
+        in_bom = not (ref == "J1" or ref.startswith("TP") or (ref.startswith("H") and ref[1:].isdigit()))
+        self._symbol_instance(lib_id, ref, x, y, 0, unit, value, footprint, datasheet, fields or {}, in_bom, False,
                               ref_xy, val_xy, just)
         stubs = []
         seen = set()
@@ -400,6 +401,7 @@ FP_SIP7 = PROJECT_LIB + ":R_Array_SIP7"
 FP_SW5 = PROJECT_LIB + ":SW_DIP_SPSTx05_Slide_9.78x14.88mm_W7.62mm_P2.54mm"
 FP_SW6 = PROJECT_LIB + ":SW_DIP_SPSTx06_Slide_9.78x17.42mm_W7.62mm_P2.54mm"
 FP_JP = PROJECT_LIB + ":PinHeader_1x02_P2.54mm_Vertical"
+FP_HOLE = PROJECT_LIB + ":MountingHole_3.2mm_Pad5.0mm"
 DS = "docs/datasheets/"
 
 
@@ -520,6 +522,12 @@ def build():
     for i, (ref, net) in enumerate(tps):
         sch.place(ref, "Connector:TestPoint", 431.8 + i * 20.32, y0 - 7.62, {1: net}, net.replace("~{", "").replace("}", "#"),
                   FP_TP, side_text=True)
+
+    # Bracket screws (Keystone 9202, 4-40): plated holes tied to GND, as the IBM card drawing (XT 1-31) grounds
+    # the bracket through a copper pad on the mounting hole.
+    for i, ref in enumerate(("H1", "H2")):
+        sch.place(ref, "Mechanical:MountingHole_Pad", 452.12 + i * 17.78, 325.12, {1: G}, "BRACKET 4-40",
+                  FP_HOLE, side_text=True)
 
     # Decoupling: 100 nF per logic IC and per flash VCC pin, 10 uF bulk on +5 V.
     caps = ["C%d" % i for i in range(1, 13)] + ["C15"]

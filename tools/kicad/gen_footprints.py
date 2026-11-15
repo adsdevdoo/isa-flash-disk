@@ -139,13 +139,18 @@ def isa_edge():
     out.append(text_prop("Datasheet", "", 0, 0, "F.Fab", name, hide=True))
     out.append(text_prop("Description", "", 0, 0, "F.Fab", name, hide=True))
     out.append("\t(attr exclude_from_pos_files exclude_from_bom)\n")
-    out.append(line(2.6, 3.85, 2.6, -5.1, "F.SilkS", 0.12, name + "s1"))
-    out.append(line(2.6, -5.1, 3.0, -5.1, "F.SilkS", 0.12, name + "s2"))
-    out.append(line(-78.8, 3.85, -78.8, -5.1, "F.SilkS", 0.12, name + "s3"))
-    out.append(line(-78.8, -5.1, -79.2, -5.1, "F.SilkS", 0.12, name + "s4"))
+    # No silkscreen: the contact ends lie on the card edge.
     out.append(rect(-79.45, -5.33, 3.25, 4.06, "F.CrtYd", 0.05, name + "crt"))
+    # Contacts keep the BUS_AT top edge (y = -3.81) but end 1.0 mm above the card edge instead of at it:
+    # JLCPCB bevels the contact edge (30 or 45 degrees) and allows no copper in the bevel. With a 1.6 mm board
+    # and 0.5 mm left after bevelling, a 30 degree bevel removes about (0.8 - 0.25) / tan(30) = 0.95 mm.
+    # The footprint origin is then placed 3.09 mm above (1.0 + 3.09 mm from) the card edge.
+    pad_h = 6.90
     for n in range(1, 63):
-        out.append("\t" + pads[n].lstrip("\t") + "\n")
+        blk = pads[n].lstrip("\t")
+        blk = re.sub(r"\(at ([-\d.]+) 0\)", lambda m: "(at %s %s)" % (m.group(1), fmt(-3.81 + pad_h / 2)), blk)
+        blk = blk.replace("(size 1.78 7.62)", "(size 1.78 %s)" % fmt(pad_h))
+        out.append("\t" + blk + "\n")
     out.append("\t(embedded_fonts no)\n)\n")
     return name, "".join(out)
 
@@ -167,6 +172,27 @@ STOCK = [
 ]
 
 
+def mounting_hole():
+    """Plated 3.2 mm hole with a 5.0 mm pad for a 4-40 bracket screw (pad kept small: the lower hole is
+    close to the card edge)."""
+    name = "MountingHole_3.2mm_Pad5.0mm"
+    out = ['(footprint "%s"\n\t(version 20241229)\n\t(generator "isa-flash-disk")\n\t(generator_version "1.0")\n'
+           '\t(layer "F.Cu")\n' % name,
+           '\t(descr "Mounting hole 3.2 mm, plated, 5.0 mm pad on both sides, for a 4-40 PC bracket screw")\n',
+           '\t(tags "mounting hole bracket 4-40")\n',
+           text_prop("Reference", "REF**", 0, -3.6, "F.SilkS", name),
+           text_prop("Value", name, 0, 3.6, "F.Fab", name),
+           text_prop("Datasheet", "", 0, 0, "F.Fab", name, hide=True),
+           text_prop("Description", "", 0, 0, "F.Fab", name, hide=True),
+           "\t(attr exclude_from_pos_files exclude_from_bom)\n",
+           '\t(fp_circle\n\t\t(center 0 0)\n\t\t(end 2.75 0)\n\t\t(stroke\n\t\t\t(width 0.05)\n\t\t\t(type solid)\n\t\t)\n'
+           '\t\t(fill no)\n\t\t(layer "F.CrtYd")\n\t\t(uuid "%s")\n\t)\n' % uid(name + "crt"),
+           '\t(pad "1" thru_hole circle\n\t\t(at 0 0)\n\t\t(size 5 5)\n\t\t(drill 3.2)\n'
+           '\t\t(layers "*.Cu" "*.Mask")\n\t\t(remove_unused_layers no)\n\t\t(uuid "%s")\n\t)\n' % uid(name + "pad"),
+           "\t(embedded_fonts no)\n)\n"]
+    return name, "".join(out)
+
+
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     for item in STOCK:
@@ -177,7 +203,7 @@ def main():
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
         print("copied", item)
-    for name, text in (psop44(), isa_edge()):
+    for name, text in (psop44(), isa_edge(), mounting_hole()):
         path = os.path.join(OUT_DIR, name + ".kicad_mod")
         with open(path, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)

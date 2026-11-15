@@ -5878,6 +5878,113 @@
 			)
 			(embedded_fonts no)
 		)
+			(symbol "Mechanical:MountingHole_Pad"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(property "Reference" "H"
+				(at 0 6.35 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole_Pad"
+				(at 0 4.445 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Mounting Hole with connection"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "mounting hole"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "MountingHole*Pad*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "MountingHole_Pad_0_1"
+				(circle
+					(center 0 1.27)
+					(radius 1.27)
+					(stroke
+						(width 1.27)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "MountingHole_Pad_1_1"
+				(pin input line
+					(at 0 -2.54 90)
+					(length 2.54)
+					(name "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 			(symbol "Switch:SW_DIP_x05"
 			(pin_names
 				(offset 0)
@@ -14607,6 +14714,26 @@
 	)
 	(wire
 		(pts
+			(xy 452.12 327.66) (xy 452.12 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2610c50f-aecf-5aba-a888-dfb4d3b959c7")
+	)
+	(wire
+		(pts
+			(xy 469.9 327.66) (xy 469.9 330.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "edb5587a-64af-5d3a-a241-c0efd372c30e")
+	)
+	(wire
+		(pts
 			(xy 76.2 331.47) (xy 76.2 328.93)
 		)
 		(stroke
@@ -14932,7 +15059,7 @@
 		(at 50.8 139.7 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "dd85ac28-95d9-54d3-befd-580fff887343")
@@ -22417,7 +22544,7 @@
 		(at 431.8 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "239bbf8c-7af9-5946-b63f-1ce4fdccfdb4")
@@ -22548,7 +22675,7 @@
 		(at 452.12 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "dc3c7002-45f4-58fd-b011-753ac84fb748")
@@ -22679,7 +22806,7 @@
 		(at 472.44 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "5108b07e-6361-509e-bb8c-3b1949bf1850")
@@ -22810,7 +22937,7 @@
 		(at 492.76 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "47e6cd6b-0734-540a-93a4-3c9d4e1aeb43")
@@ -22941,7 +23068,7 @@
 		(at 513.08 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "30b66ba6-fbe2-56de-85a1-ad74ed399886")
@@ -23007,7 +23134,7 @@
 		(at 533.4 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "bb0a4f26-74a0-5145-803a-9e15a76a499d")
@@ -23073,7 +23200,7 @@
 		(at 553.72 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
 		(dnp no)
 		(uuid "7f444e69-1488-5327-94ad-54823640c90d")
@@ -23129,6 +23256,268 @@
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
 					(reference "TP7")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole_Pad")
+		(at 452.12 325.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "8db24c05-f201-53a9-afc6-53e0e89e5b7e")
+		(property "Reference" "H1"
+			(at 453.39 323.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BRACKET 4-40"
+			(at 453.39 326.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "isa_flash_disk:MountingHole_3.2mm_Pad5.0mm"
+			(at 452.12 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 452.12 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "b0b625a8-29cf-5806-880e-b16005fbb8f1")
+		)
+		(instances
+			(project "isa-flash-disk"
+				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
+					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 452.12 330.2 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "3cbc83ce-dbc4-536d-bf0d-0a3168a665d0")
+		(property "Reference" "#PWR064"
+			(at 452.12 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 452.12 334.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 452.12 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 452.12 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e3a5237b-ebeb-5179-8a56-a7cfcf324dd0")
+		)
+		(instances
+			(project "isa-flash-disk"
+				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
+					(reference "#PWR064")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole_Pad")
+		(at 469.9 325.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "abc256e9-82f3-546c-bb1f-b23cafb4cefc")
+		(property "Reference" "H2"
+			(at 471.17 323.85 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "BRACKET 4-40"
+			(at 471.17 326.39 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "isa_flash_disk:MountingHole_3.2mm_Pad5.0mm"
+			(at 469.9 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 469.9 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 469.9 325.12 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ef16acf8-116a-51fa-9276-12f8a0e04f57")
+		)
+		(instances
+			(project "isa-flash-disk"
+				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
+					(reference "H2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 469.9 330.2 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(dnp no)
+		(uuid "a158c9f9-7a50-5363-bf69-62bbe0dc0f2e")
+		(property "Reference" "#PWR065"
+			(at 469.9 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Value" "GND"
+			(at 469.9 334.65 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 469.9 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 469.9 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" ""
+			(at 469.9 330.2 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e8cf5489-3305-54f8-bd40-e935421396b6")
+		)
+		(instances
+			(project "isa-flash-disk"
+				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
+					(reference "#PWR065")
 					(unit 1)
 				)
 			)
@@ -23211,8 +23600,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "3cbc83ce-dbc4-536d-bf0d-0a3168a665d0")
-		(property "Reference" "#PWR064"
+		(uuid "adf937e4-ecf5-5207-8824-706ee4c2d026")
+		(property "Reference" "#PWR066"
 			(at 76.2 341.63 0)
 			(effects
 				(font
@@ -23257,12 +23646,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e3a5237b-ebeb-5179-8a56-a7cfcf324dd0")
+			(uuid "c2d28dfe-83b1-5f38-89d3-f0e087c2fbd9")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR064")
+					(reference "#PWR066")
 					(unit 1)
 				)
 			)
@@ -23276,8 +23665,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "a158c9f9-7a50-5363-bf69-62bbe0dc0f2e")
-		(property "Reference" "#PWR065"
+		(uuid "937d6569-a502-5b29-895f-a2cac174e1e4")
+		(property "Reference" "#PWR067"
 			(at 76.2 328.93 0)
 			(effects
 				(font
@@ -23322,12 +23711,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e8cf5489-3305-54f8-bd40-e935421396b6")
+			(uuid "2c4936c8-0a07-5038-8154-8f9e22158c7e")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR065")
+					(reference "#PWR067")
 					(unit 1)
 				)
 			)
@@ -23410,8 +23799,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "adf937e4-ecf5-5207-8824-706ee4c2d026")
-		(property "Reference" "#PWR066"
+		(uuid "9b5e63e9-4347-59a4-ab8c-1483448af9cc")
+		(property "Reference" "#PWR068"
 			(at 96.52 341.63 0)
 			(effects
 				(font
@@ -23456,12 +23845,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c2d28dfe-83b1-5f38-89d3-f0e087c2fbd9")
+			(uuid "b59c8bf7-102f-59e0-bd28-543f320aefd6")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR066")
+					(reference "#PWR068")
 					(unit 1)
 				)
 			)
@@ -23475,8 +23864,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "937d6569-a502-5b29-895f-a2cac174e1e4")
-		(property "Reference" "#PWR067"
+		(uuid "bc178bfc-20a2-5ae9-9a80-d7ee6abf29e1")
+		(property "Reference" "#PWR069"
 			(at 96.52 328.93 0)
 			(effects
 				(font
@@ -23521,12 +23910,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "2c4936c8-0a07-5038-8154-8f9e22158c7e")
+			(uuid "f0637789-0924-5dd7-af04-8e719430753a")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR067")
+					(reference "#PWR069")
 					(unit 1)
 				)
 			)
@@ -23609,8 +23998,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "9b5e63e9-4347-59a4-ab8c-1483448af9cc")
-		(property "Reference" "#PWR068"
+		(uuid "24ef8cab-4744-5213-b8be-5b80b5d59399")
+		(property "Reference" "#PWR070"
 			(at 116.84 341.63 0)
 			(effects
 				(font
@@ -23655,12 +24044,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "b59c8bf7-102f-59e0-bd28-543f320aefd6")
+			(uuid "ab98730b-6e6d-51f2-825a-182cc603aff0")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR068")
+					(reference "#PWR070")
 					(unit 1)
 				)
 			)
@@ -23674,8 +24063,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "bc178bfc-20a2-5ae9-9a80-d7ee6abf29e1")
-		(property "Reference" "#PWR069"
+		(uuid "a38b30db-ea33-571c-ac8f-022ebe06cdfc")
+		(property "Reference" "#PWR071"
 			(at 116.84 328.93 0)
 			(effects
 				(font
@@ -23720,12 +24109,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "f0637789-0924-5dd7-af04-8e719430753a")
+			(uuid "0d652567-5694-5c36-98fa-2d9ab56f8d54")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR069")
+					(reference "#PWR071")
 					(unit 1)
 				)
 			)
@@ -23808,8 +24197,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "24ef8cab-4744-5213-b8be-5b80b5d59399")
-		(property "Reference" "#PWR070"
+		(uuid "16ce7032-0665-5362-8d6f-44252bc8a208")
+		(property "Reference" "#PWR072"
 			(at 137.16 341.63 0)
 			(effects
 				(font
@@ -23854,12 +24243,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "ab98730b-6e6d-51f2-825a-182cc603aff0")
+			(uuid "c0688938-ffc1-52a7-9ef2-275f4cb402cd")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR070")
+					(reference "#PWR072")
 					(unit 1)
 				)
 			)
@@ -23873,8 +24262,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "a38b30db-ea33-571c-ac8f-022ebe06cdfc")
-		(property "Reference" "#PWR071"
+		(uuid "cf5badc5-a414-5e17-8908-6c446cddc4f0")
+		(property "Reference" "#PWR073"
 			(at 137.16 328.93 0)
 			(effects
 				(font
@@ -23919,12 +24308,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "0d652567-5694-5c36-98fa-2d9ab56f8d54")
+			(uuid "a91d8d5b-55c1-589b-8e71-dc50c8453ec3")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR071")
+					(reference "#PWR073")
 					(unit 1)
 				)
 			)
@@ -24007,8 +24396,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "16ce7032-0665-5362-8d6f-44252bc8a208")
-		(property "Reference" "#PWR072"
+		(uuid "e6621be8-8d28-5598-8025-4a2435968f2e")
+		(property "Reference" "#PWR074"
 			(at 157.48 341.63 0)
 			(effects
 				(font
@@ -24053,12 +24442,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "c0688938-ffc1-52a7-9ef2-275f4cb402cd")
+			(uuid "167aa923-9cfd-5420-978a-a3ad7a05e4d7")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR072")
+					(reference "#PWR074")
 					(unit 1)
 				)
 			)
@@ -24072,8 +24461,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "cf5badc5-a414-5e17-8908-6c446cddc4f0")
-		(property "Reference" "#PWR073"
+		(uuid "5c2d3fa5-6aa7-5a53-a0b4-6c85770d25cb")
+		(property "Reference" "#PWR075"
 			(at 157.48 328.93 0)
 			(effects
 				(font
@@ -24118,12 +24507,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "a91d8d5b-55c1-589b-8e71-dc50c8453ec3")
+			(uuid "e090b049-f372-5bf5-87e5-2bfa5b611248")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR073")
+					(reference "#PWR075")
 					(unit 1)
 				)
 			)
@@ -24206,8 +24595,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "e6621be8-8d28-5598-8025-4a2435968f2e")
-		(property "Reference" "#PWR074"
+		(uuid "7aead229-2864-5194-942a-9c084c3c72f7")
+		(property "Reference" "#PWR076"
 			(at 177.8 341.63 0)
 			(effects
 				(font
@@ -24252,12 +24641,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "167aa923-9cfd-5420-978a-a3ad7a05e4d7")
+			(uuid "88568373-9ead-5f12-a84a-9f3065c21796")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR074")
+					(reference "#PWR076")
 					(unit 1)
 				)
 			)
@@ -24271,8 +24660,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "5c2d3fa5-6aa7-5a53-a0b4-6c85770d25cb")
-		(property "Reference" "#PWR075"
+		(uuid "64d08a62-c407-528c-9eb9-dd25b3658255")
+		(property "Reference" "#PWR077"
 			(at 177.8 328.93 0)
 			(effects
 				(font
@@ -24317,12 +24706,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e090b049-f372-5bf5-87e5-2bfa5b611248")
+			(uuid "86fddb9a-718a-5ea1-91c8-52c6b857835c")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR075")
+					(reference "#PWR077")
 					(unit 1)
 				)
 			)
@@ -24405,8 +24794,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "7aead229-2864-5194-942a-9c084c3c72f7")
-		(property "Reference" "#PWR076"
+		(uuid "2b1ba67c-6a59-5e65-8947-567132e1c42c")
+		(property "Reference" "#PWR078"
 			(at 198.12 341.63 0)
 			(effects
 				(font
@@ -24451,12 +24840,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "88568373-9ead-5f12-a84a-9f3065c21796")
+			(uuid "b7a95a58-fece-5ba2-83ed-7e313791333f")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR076")
+					(reference "#PWR078")
 					(unit 1)
 				)
 			)
@@ -24470,8 +24859,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "64d08a62-c407-528c-9eb9-dd25b3658255")
-		(property "Reference" "#PWR077"
+		(uuid "740fb20d-65b7-5642-b1aa-c4a3e4c5f022")
+		(property "Reference" "#PWR079"
 			(at 198.12 328.93 0)
 			(effects
 				(font
@@ -24516,12 +24905,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "86fddb9a-718a-5ea1-91c8-52c6b857835c")
+			(uuid "280dd670-55c2-5e14-abd0-48920fcc4e29")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR077")
+					(reference "#PWR079")
 					(unit 1)
 				)
 			)
@@ -24604,8 +24993,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "2b1ba67c-6a59-5e65-8947-567132e1c42c")
-		(property "Reference" "#PWR078"
+		(uuid "55738a09-9013-56b2-9a0b-a8639b55c2f9")
+		(property "Reference" "#PWR080"
 			(at 218.44 341.63 0)
 			(effects
 				(font
@@ -24650,12 +25039,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "b7a95a58-fece-5ba2-83ed-7e313791333f")
+			(uuid "487f3ac6-259e-563f-a6a9-a37747fcbe23")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR078")
+					(reference "#PWR080")
 					(unit 1)
 				)
 			)
@@ -24669,8 +25058,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "740fb20d-65b7-5642-b1aa-c4a3e4c5f022")
-		(property "Reference" "#PWR079"
+		(uuid "30ab4d85-271e-5fee-a6b8-d690c771dd39")
+		(property "Reference" "#PWR081"
 			(at 218.44 328.93 0)
 			(effects
 				(font
@@ -24715,12 +25104,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "280dd670-55c2-5e14-abd0-48920fcc4e29")
+			(uuid "dd9ae91e-3b83-5852-990d-bd6138a631b1")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR079")
+					(reference "#PWR081")
 					(unit 1)
 				)
 			)
@@ -24803,8 +25192,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "55738a09-9013-56b2-9a0b-a8639b55c2f9")
-		(property "Reference" "#PWR080"
+		(uuid "e6d736d9-157a-5fd8-bf1f-4ca7389ee929")
+		(property "Reference" "#PWR082"
 			(at 238.76 341.63 0)
 			(effects
 				(font
@@ -24849,12 +25238,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "487f3ac6-259e-563f-a6a9-a37747fcbe23")
+			(uuid "3d82dae0-0cd5-5570-b374-5dca1e97d8e4")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR080")
+					(reference "#PWR082")
 					(unit 1)
 				)
 			)
@@ -24868,8 +25257,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "30ab4d85-271e-5fee-a6b8-d690c771dd39")
-		(property "Reference" "#PWR081"
+		(uuid "0db65160-6702-57cf-91b9-9a7025b5124a")
+		(property "Reference" "#PWR083"
 			(at 238.76 328.93 0)
 			(effects
 				(font
@@ -24914,12 +25303,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "dd9ae91e-3b83-5852-990d-bd6138a631b1")
+			(uuid "f27d1a7d-479f-5f61-bc1e-94df969f5be9")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR081")
+					(reference "#PWR083")
 					(unit 1)
 				)
 			)
@@ -25002,8 +25391,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "e6d736d9-157a-5fd8-bf1f-4ca7389ee929")
-		(property "Reference" "#PWR082"
+		(uuid "8724f934-0091-5885-82e4-87aa220c39b9")
+		(property "Reference" "#PWR084"
 			(at 259.08 341.63 0)
 			(effects
 				(font
@@ -25048,12 +25437,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "3d82dae0-0cd5-5570-b374-5dca1e97d8e4")
+			(uuid "02ec460e-8834-51f5-93e9-589a8241012f")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR082")
+					(reference "#PWR084")
 					(unit 1)
 				)
 			)
@@ -25067,8 +25456,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "0db65160-6702-57cf-91b9-9a7025b5124a")
-		(property "Reference" "#PWR083"
+		(uuid "07245767-3c3f-59d2-9a38-546c9d9c7021")
+		(property "Reference" "#PWR085"
 			(at 259.08 328.93 0)
 			(effects
 				(font
@@ -25113,12 +25502,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "f27d1a7d-479f-5f61-bc1e-94df969f5be9")
+			(uuid "262901b8-138e-5f05-b76b-ae1c17eea4c0")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR083")
+					(reference "#PWR085")
 					(unit 1)
 				)
 			)
@@ -25201,8 +25590,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "8724f934-0091-5885-82e4-87aa220c39b9")
-		(property "Reference" "#PWR084"
+		(uuid "b950dfd7-1b5e-58e8-8c72-a04e518a4703")
+		(property "Reference" "#PWR086"
 			(at 279.4 341.63 0)
 			(effects
 				(font
@@ -25247,12 +25636,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "02ec460e-8834-51f5-93e9-589a8241012f")
+			(uuid "0b1e97cd-f31c-5cc4-a717-969ea574e41c")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR084")
+					(reference "#PWR086")
 					(unit 1)
 				)
 			)
@@ -25266,8 +25655,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "07245767-3c3f-59d2-9a38-546c9d9c7021")
-		(property "Reference" "#PWR085"
+		(uuid "e8433c58-82d9-5e88-b595-76db3f16f279")
+		(property "Reference" "#PWR087"
 			(at 279.4 328.93 0)
 			(effects
 				(font
@@ -25312,12 +25701,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "262901b8-138e-5f05-b76b-ae1c17eea4c0")
+			(uuid "acc15017-22fd-5991-9245-3836c02c5c7c")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR085")
+					(reference "#PWR087")
 					(unit 1)
 				)
 			)
@@ -25400,8 +25789,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "b950dfd7-1b5e-58e8-8c72-a04e518a4703")
-		(property "Reference" "#PWR086"
+		(uuid "4160a3f0-3ece-54ce-bf49-256ccc3d231e")
+		(property "Reference" "#PWR088"
 			(at 299.72 341.63 0)
 			(effects
 				(font
@@ -25446,12 +25835,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "0b1e97cd-f31c-5cc4-a717-969ea574e41c")
+			(uuid "8f811701-f45a-59c1-9e54-c3a2639fd3c1")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR086")
+					(reference "#PWR088")
 					(unit 1)
 				)
 			)
@@ -25465,8 +25854,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "e8433c58-82d9-5e88-b595-76db3f16f279")
-		(property "Reference" "#PWR087"
+		(uuid "499778cf-0547-5a4a-9039-08b789831441")
+		(property "Reference" "#PWR089"
 			(at 299.72 328.93 0)
 			(effects
 				(font
@@ -25511,12 +25900,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "acc15017-22fd-5991-9245-3836c02c5c7c")
+			(uuid "99dc854b-c46b-5212-8316-48d3ed1ec445")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR087")
+					(reference "#PWR089")
 					(unit 1)
 				)
 			)
@@ -25599,8 +25988,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "4160a3f0-3ece-54ce-bf49-256ccc3d231e")
-		(property "Reference" "#PWR088"
+		(uuid "8032423f-f5d8-55f3-a486-4272357d0bdb")
+		(property "Reference" "#PWR090"
 			(at 320.04 341.63 0)
 			(effects
 				(font
@@ -25645,12 +26034,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "8f811701-f45a-59c1-9e54-c3a2639fd3c1")
+			(uuid "21770389-d9d7-5b4d-a909-adb54f1673fd")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR088")
+					(reference "#PWR090")
 					(unit 1)
 				)
 			)
@@ -25664,8 +26053,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "499778cf-0547-5a4a-9039-08b789831441")
-		(property "Reference" "#PWR089"
+		(uuid "67b851fe-011e-565f-8689-e05d09e9f976")
+		(property "Reference" "#PWR091"
 			(at 320.04 328.93 0)
 			(effects
 				(font
@@ -25710,12 +26099,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "99dc854b-c46b-5212-8316-48d3ed1ec445")
+			(uuid "6dfdf4a1-e12b-517f-a465-5b0f85fd892e")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR089")
+					(reference "#PWR091")
 					(unit 1)
 				)
 			)
@@ -25729,8 +26118,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "e94aa174-855c-5fe0-a96f-35426855443d")
-		(property "Reference" "#FLG090"
+		(uuid "62b7010d-77a9-5c91-9065-e881bf6ecc39")
+		(property "Reference" "#FLG092"
 			(at 353.06 330.28 0)
 			(effects
 				(font
@@ -25775,12 +26164,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "6557b61f-5b95-52a7-bc92-b05612755e9a")
+			(uuid "ef9c23f9-0740-5e74-94c2-c7a1c3f12734")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#FLG090")
+					(reference "#FLG092")
 					(unit 1)
 				)
 			)
@@ -25794,8 +26183,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "67b851fe-011e-565f-8689-e05d09e9f976")
-		(property "Reference" "#PWR091"
+		(uuid "d5c804f4-4b91-51fb-8def-2efff55e27bd")
+		(property "Reference" "#PWR093"
 			(at 360.68 335.28 0)
 			(effects
 				(font
@@ -25840,12 +26229,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "6dfdf4a1-e12b-517f-a465-5b0f85fd892e")
+			(uuid "9e47907d-5a80-5747-8ebc-46bf2e128402")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR091")
+					(reference "#PWR093")
 					(unit 1)
 				)
 			)
@@ -25859,8 +26248,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "62b7010d-77a9-5c91-9065-e881bf6ecc39")
-		(property "Reference" "#FLG092"
+		(uuid "3ef9dbb1-5f78-5d5d-b573-170500f8be10")
+		(property "Reference" "#FLG094"
 			(at 378.46 330.28 0)
 			(effects
 				(font
@@ -25905,12 +26294,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "ef9c23f9-0740-5e74-94c2-c7a1c3f12734")
+			(uuid "9b6ded61-238d-579d-bab2-2863c2db80e3")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#FLG092")
+					(reference "#FLG094")
 					(unit 1)
 				)
 			)
@@ -25924,8 +26313,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "d5c804f4-4b91-51fb-8def-2efff55e27bd")
-		(property "Reference" "#PWR093"
+		(uuid "9ee4cbc7-f881-5143-80be-15342f66bcef")
+		(property "Reference" "#PWR095"
 			(at 386.08 335.28 0)
 			(effects
 				(font
@@ -25970,12 +26359,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "9e47907d-5a80-5747-8ebc-46bf2e128402")
+			(uuid "e8cf5789-9fb4-5290-95ee-1f21a949ec3e")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR093")
+					(reference "#PWR095")
 					(unit 1)
 				)
 			)
@@ -25989,8 +26378,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "3ef9dbb1-5f78-5d5d-b573-170500f8be10")
-		(property "Reference" "#FLG094"
+		(uuid "955ac9af-69c1-5c8b-accb-fea80e74a52a")
+		(property "Reference" "#FLG096"
 			(at 403.86 330.28 0)
 			(effects
 				(font
@@ -26035,12 +26424,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "9b6ded61-238d-579d-bab2-2863c2db80e3")
+			(uuid "fa4da3e8-f007-5efa-a1d0-c29638c84851")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#FLG094")
+					(reference "#FLG096")
 					(unit 1)
 				)
 			)
@@ -26054,8 +26443,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "9ee4cbc7-f881-5143-80be-15342f66bcef")
-		(property "Reference" "#PWR095"
+		(uuid "c24e80e6-debf-528a-829c-5a8a18e570a9")
+		(property "Reference" "#PWR097"
 			(at 411.48 335.28 0)
 			(effects
 				(font
@@ -26100,12 +26489,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e8cf5789-9fb4-5290-95ee-1f21a949ec3e")
+			(uuid "e4a8c5e0-2297-5f3b-a974-25f9b92779ee")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR095")
+					(reference "#PWR097")
 					(unit 1)
 				)
 			)
@@ -26119,8 +26508,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "955ac9af-69c1-5c8b-accb-fea80e74a52a")
-		(property "Reference" "#FLG096"
+		(uuid "4e6b81a4-f9fe-5075-9677-b70c942ce656")
+		(property "Reference" "#FLG098"
 			(at 429.26 330.28 0)
 			(effects
 				(font
@@ -26165,12 +26554,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "fa4da3e8-f007-5efa-a1d0-c29638c84851")
+			(uuid "ef9120b4-fe9b-56cb-9953-71c2ebabe694")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#FLG096")
+					(reference "#FLG098")
 					(unit 1)
 				)
 			)
@@ -26184,8 +26573,8 @@
 		(in_bom no)
 		(on_board yes)
 		(dnp no)
-		(uuid "c24e80e6-debf-528a-829c-5a8a18e570a9")
-		(property "Reference" "#PWR097"
+		(uuid "17b16f6b-6dea-5c92-b0a4-2f73260d6203")
+		(property "Reference" "#PWR099"
 			(at 436.88 335.28 0)
 			(effects
 				(font
@@ -26230,12 +26619,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "e4a8c5e0-2297-5f3b-a974-25f9b92779ee")
+			(uuid "6a75276e-121e-5b62-93ec-74d1d0e5886d")
 		)
 		(instances
 			(project "isa-flash-disk"
 				(path "/fb524c32-0c01-5342-81f0-c2dec8e37024"
-					(reference "#PWR097")
+					(reference "#PWR099")
 					(unit 1)
 				)
 			)

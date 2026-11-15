@@ -22,3 +22,6 @@ Thumbs.db
 # Netlists contain absolute local paths
 hardware/kicad/reports/*.net
 *.net
+
+# Intermediate board build (placed board, DSN/SES, netlist)
+hardware/kicad/build/

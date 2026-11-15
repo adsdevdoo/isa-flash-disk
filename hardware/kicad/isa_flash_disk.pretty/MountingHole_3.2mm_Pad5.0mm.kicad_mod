@@ -1,0 +1,75 @@
+(footprint "MountingHole_3.2mm_Pad5.0mm"
+	(version 20241229)
+	(generator "isa-flash-disk")
+	(generator_version "1.0")
+	(layer "F.Cu")
+	(descr "Mounting hole 3.2 mm, plated, 5.0 mm pad on both sides, for a 4-40 PC bracket screw")
+	(tags "mounting hole bracket 4-40")
+	(property "Reference" "REF**"
+		(at 0 -3.6 0)
+		(layer "F.SilkS")
+		(uuid "cd3a56b6-2266-5545-b42e-8d20e5fac05d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "MountingHole_3.2mm_Pad5.0mm"
+		(at 0 3.6 0)
+		(layer "F.Fab")
+		(uuid "2573f84d-1163-5460-8004-337236f37e00")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "426fbc4d-76e3-5b60-a069-f5f5fdffb0ab")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "9d4c5c89-3191-59fe-80ff-c872806d1652")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr exclude_from_pos_files exclude_from_bom)
+	(fp_circle
+		(center 0 0)
+		(end 2.75 0)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.CrtYd")
+		(uuid "303b721f-7ae1-5d7c-8a26-25042ffb1a9a")
+	)
+	(pad "1" thru_hole circle
+		(at 0 0)
+		(size 5 5)
+		(drill 3.2)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
+		(uuid "269c4a8f-1a97-50c7-8bab-fb5850baee31")
+	)
+	(embedded_fonts no)
+)

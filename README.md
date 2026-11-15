@@ -14,13 +14,17 @@
 | Этап | Содержание | Состояние |
 |---|---|---|
 | 1. Исследование | документация, выбор архитектуры | выполнено |
-| 2–3. Схема карты | 1–2 микросхемы, банки, защита записи | **схема rev A: ERC 0, нетлист сверен** |
+| 2–3. Схема карты | 1–2 микросхемы, банки, защита записи | схема rev A: ERC 0, нетлист сверен |
+| 5. Плата | разводка, DRC, Gerber | **rev A разведена: DRC 0, соответствие схеме 0 расхождений** |
 | 2. Прототип | изготовление, чтение, адресация, запись | не начат |
 | 4. Программы | утилиты DOS, Option ROM, загрузка | не начат |
-| 5. Производство | разводка, DRC, Gerber, JLCPCB | не начат |
 
-**Статус: схема rev A, не проверена в железе. Платы ещё нет.** Ничего из репозитория пока нельзя
-заказывать. Схема — [docs/schematic.pdf](docs/schematic.pdf), проект KiCad 9 — [hardware/kicad/](hardware/kicad/).
+**Статус: инженерный прототип rev A, не испытан в железе.** Плата 104.14 × 100 мм под планку Keystone 9202,
+архив для JLCPCB — [hardware/gerber/](hardware/gerber/), параметры заказа и границы проверки —
+[docs/manufacturing.md](docs/manufacturing.md). Схема — [docs/schematic.pdf](docs/schematic.pdf),
+проект KiCad 9 — [hardware/kicad/](hardware/kicad/). Покупку и заказ выполняет владелец.
+
+![Верх платы rev A (CAD-рендер)](images/isa-flash-disk-top.png)
 
 ## Документация
 
@@ -35,6 +39,8 @@
 | [docs/programming.md](docs/programming.md) | запись и стирание из DOS |
 | [docs/testing.md](docs/testing.md) | замеры и проверки |
 | [docs/assembly.md](docs/assembly.md) | сборка карты |
+| [docs/manufacturing.md](docs/manufacturing.md) | заказ платы в JLCPCB, что проверено |
+| [docs/models.md](docs/models.md) | 3D-модели и их ограничения |
 
 Даташиты и руководства IBM лежат в [docs/datasheets/](docs/datasheets/) и [docs/references/](docs/references/).
 
