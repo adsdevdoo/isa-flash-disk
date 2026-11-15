@@ -400,23 +400,63 @@ def place_silkscreen(b, fps):
     for s_, h_, cy in (("ISA FLASH DISK rev A", 1.5, 70.0), ("github.com/adsdevdoo/isa-flash-disk", TEXT_SIZE, 72.6)):
         x_, y_ = spb.place(s_, [(cx, cy + d) for d in (0, 2, 4, -2, -4) for cx in (W / 2, W / 2 - 10, W / 2 + 10)], s_ and h_)
         text(b, s_, x_, y_, h_, layer=p.B_SilkS, bold=(h_ > TEXT_SIZE))
-    bottom_lines = ["SW1 MEM WINDOW   ON=0 OFF=1", "pos  1   2   3   4   5",
-                    "bit  A13 A14 A15 A16 A17", "C800 ON  ON  OFF ON  ON",
-                    "CC00 ON  OFF OFF ON  ON   default", "D000 ON  ON  ON  OFF ON",
-                    "E000 ON  ON  ON  ON  OFF", "",
-                    "SW2 I/O PORT     ON=0 OFF=1", "pos  1   2   3   4   5   6",
-                    "bit  A3  A4  A5  A6  A7  A8", "280  ON  ON  ON  ON  OFF ON",
-                    "2A0  ON  ON  OFF ON  OFF ON   default", "300  ON  ON  ON  ON  ON  OFF", "",
-                    "JP1 WRITE: open = flash write protected"]
-    # Mirrored text: the block is laid out from its right edge on the board drawing.
-    widths = [spb.size(s, TEXT_SIZE)[0] for s in bottom_lines]
-    anchors = [(ax, ay) for ay in [8.0 + 0.5 * k for k in range(0, 90)] for ax in (3.0, 5.0, 8.0, 12.0, 20.0, 30.0)]
-    ax, ay = spb.block([s for s in bottom_lines], anchors)
-    for i, s in enumerate(bottom_lines):
-        if s:
-            # Mirrored + left-justified: the text starts at the anchor and runs towards -x on the drawing.
-            text(b, s, ax + max(widths) - 0.15, ay + i * 1.65, TEXT_SIZE, layer=p.B_SilkS, justify="left")
+    sw1 = ("SW1  MEM WINDOW   ON = 0", ["SW1", "1", "2", "3", "4", "5"], ["bit", "A13", "A14", "A15", "A16", "A17"],
+           [["C8000", "ON", "ON", "OFF", "ON", "ON"], ["CC000 *", "ON", "OFF", "OFF", "ON", "ON"],
+            ["D0000", "ON", "ON", "ON", "OFF", "ON"], ["E0000", "ON", "ON", "ON", "ON", "OFF"]])
+    sw2 = ("SW2  I/O PORT   ON = 0", ["SW2", "1", "2", "3", "4", "5", "6"], ["bit", "A3", "A4", "A5", "A6", "A7", "A8"],
+           [["280", "ON", "ON", "ON", "ON", "OFF", "ON"], ["2A0 *", "ON", "ON", "OFF", "ON", "OFF", "ON"],
+            ["300", "ON", "ON", "ON", "ON", "ON", "OFF"]])
+    rects = []
+    y = 9.0
+    for title, head1, head2, rows in (sw1, sw2):
+        rects.append(silk_table(b, 44.0, y, title, [head1, head2] + rows))
+        y = rects[-1][3] + 2.5
+    for s in ("* default", "JP1 WRITE open = write protected"):
+        text(b, s, 44.0, y, TEXT_SIZE, layer=p.B_SilkS, justify="left")
+        rects.append((44.0 - spb.size(s, TEXT_SIZE)[0], y - 0.8, 44.0, y + 0.8))
+        y += 1.8
+    for r in rects:
+        if not spb.free(r):
+            raise RuntimeError("switch table overlaps bottom-side copper at %s" % (r,))
+    spb.texts.extend(rects)
     return sp.texts + spb.texts
+
+
+def silk_table(b, x_left_seen_from_bottom, y_top, title, rows, cw0=10.0, cw=5.0, rh=2.3):
+    """A ruled table on the bottom silkscreen. It is mirrored on the drawing: seen from the bottom its left
+    edge is at x_left_seen_from_bottom and its columns run towards smaller x on the top-view drawing."""
+    ncol = len(rows[0])
+    widths = [cw0] + [cw] * (ncol - 1)
+    total = sum(widths)
+    x0 = x_left_seen_from_bottom          # drawing x of the visible left edge
+    nrows = len(rows) + 1
+    bottom = y_top + nrows * rh
+
+    def line(a, z):
+        s = p.PCB_SHAPE(b)
+        s.SetShape(p.SHAPE_T_SEGMENT)
+        s.SetStart(V(*a))
+        s.SetEnd(V(*z))
+        s.SetLayer(p.B_SilkS)
+        s.SetWidth(p.FromMM(TEXT_THICK))
+        b.Add(s)
+
+    for k in range(nrows + 1):
+        yy = y_top + k * rh
+        line((x0, yy), (x0 - total, yy))
+    acc = 0.0
+    for i in range(ncol + 1):
+        line((x0 - acc, y_top + (0 if i in (0, ncol) else rh)), (x0 - acc, bottom))
+        if i < ncol:
+            acc += widths[i]
+    text(b, title, x0 - total / 2, y_top + rh / 2, TEXT_SIZE, layer=p.B_SilkS, bold=True)
+    for r, cells in enumerate(rows, 1):
+        acc = 0.0
+        for i, cell in enumerate(cells):
+            text(b, cell, x0 - acc - widths[i] / 2, y_top + r * rh + rh / 2, TEXT_SIZE, layer=p.B_SilkS,
+                 bold=(r <= 2 or i == 0))
+            acc += widths[i]
+    return (x0 - total, y_top, x0, bottom)
 
 
 def merge_project_rules():
