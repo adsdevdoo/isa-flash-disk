@@ -25,3 +25,6 @@ hardware/kicad/reports/*.net
 
 # Intermediate board build (placed board, DSN/SES, netlist)
 hardware/kicad/build/
+
+# Local NASM listings
+firmware/option-rom/build/
