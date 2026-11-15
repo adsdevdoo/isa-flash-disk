@@ -107,6 +107,23 @@ start:  cld
         mov     ax, [fseq]
         call    print_hex16
         PRINT   msg_h_crlf
+        mov     ax, [d_bad]
+        or      ax, [d_bad + 2]
+        jz      .jumper
+        PRINT   msg_bad
+        mov     al, 1
+.bl:    call    is_bad_d
+        jz      .bn
+        push    ax
+        xor     ah, ah
+        call    print_dec
+        mov     dl, ' '
+        call    print_char
+        pop     ax
+.bn:    inc     al
+        cmp     al, [d_np]
+        jbe     .bl
+        call    print_crlf
 
 .jumper:
         test    byte [opt_flags], OPT_JUMPER
@@ -171,6 +188,7 @@ msg_map1:       db      'Blocks: $'
 msg_map2:       db      ' logical in $'
 msg_map3:       db      ' flash blocks, free block $'
 msg_map4:       db      ', generation $'
+msg_bad:        db      'Bad blocks (not used): $'
 msg_nodesc:     db      'Disk: no descriptor (run FLFORMAT)', 13, 10, '$'
 msg_baddesc:    db      'Disk: descriptor checksum error', 13, 10, '$'
 msg_jp_open:    db      'WRITE jumper JP1: open (VPP low, flash protected)', 13, 10, '$'

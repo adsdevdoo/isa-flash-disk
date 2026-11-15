@@ -488,6 +488,10 @@ load_desc:
         mov     [d_nl], al
         mov     al, [dbuf + DESC_PBLKS]
         mov     [d_np], al
+        mov     ax, [dbuf + DESC_BAD]
+        mov     [d_bad], ax
+        mov     ax, [dbuf + DESC_BAD + 2]
+        mov     [d_bad + 2], ax
         xor     al, al
         pop     di
         pop     si
@@ -529,6 +533,8 @@ scan_map:
         mov     [fseq + 2], ax
         mov     byte [sm_p], 1
 .blk:   mov     al, [sm_p]
+        call    is_bad_d
+        jnz     .next
         mov     cl, 3
         shl     al, cl
         add     al, HDR_BANK
@@ -593,12 +599,14 @@ scan_map:
         push    cs
         pop     es
         mov     al, 1
-.fr:    mov     di, fmap
+.fr:    call    is_bad_d
+        jnz     .frn
+        mov     di, fmap
         mov     cl, [d_nl]
         xor     ch, ch
         repne   scasb
         jne     .free
-        inc     al
+.frn:   inc     al
         cmp     al, [d_np]
         jbe     .fr
         jmp     .bad
@@ -622,6 +630,246 @@ scan_map:
         pop     bx
         pop     ax
         stc
+        ret
+
+; is_bad_d: AL = flash block -> ZF = 0 when d_bad marks it bad. Keeps all registers.
+is_bad_d:
+        push    ax
+        push    bx
+        push    cx
+        mov     cl, al
+        and     cl, 15
+        mov     bx, 1
+        shl     bx, cl
+        test    al, 16
+        jnz     .hi
+        test    [d_bad], bx
+        jmp     .out
+.hi:    test    [d_bad + 2], bx
+.out:   pop     cx
+        pop     bx
+        pop     ax
+        ret
+
+; set_bad_d: AL = flash block -> marked bad in d_bad
+set_bad_d:
+        push    ax
+        push    bx
+        push    cx
+        mov     cl, al
+        and     cl, 15
+        mov     bx, 1
+        shl     bx, cl
+        test    al, 16
+        jnz     .hi
+        or      [d_bad], bx
+        jmp     .out
+.hi:    or      [d_bad + 2], bx
+.out:   pop     cx
+        pop     bx
+        pop     ax
+        ret
+
+; ---- block test (FLTEST, FLFORMAT /E) ----
+; test_block: BL = flash block; tb_full = 1 adds the 00h pass. VPP must be on. The block is left erased.
+; Erase (timed), every byte FFh?, [program 00h into every byte and verify, erase again (timed), FFh?].
+; -> tb_t1, tb_t2 = erase times in timer ticks (tb_t2 = 0 without the 00h pass), AL = 0 good, 1 erase failed,
+;    2 not FFh after the erase, 3 00h not programmed or not verified, 4 erase slower than ERASE_BAD_TICKS.
+;    CF = AL != 0.
+test_block:
+        push    bx
+        push    cx
+        push    di
+        push    es
+        mov     [tb_blk], bl
+        mov     word [tb_t2], 0
+        call    tb_erase
+        mov     [tb_t1], cx
+        jc      .e1
+        call    tb_blank
+        jc      .e2
+        cmp     byte [tb_full], 0
+        je      .time
+        mov     es, [bufseg]
+        xor     di, di
+        xor     ax, ax
+        mov     cx, 8000h
+        rep     stosw
+        mov     bl, [tb_blk]
+        call    write_block
+        jc      .e3
+        call    tb_erase
+        mov     [tb_t2], cx
+        jc      .e1
+        call    tb_blank
+        jc      .e2
+.time:  mov     ax, [tb_t1]
+        cmp     ax, [tb_t2]
+        jae     .t
+        mov     ax, [tb_t2]
+.t:     cmp     ax, ERASE_BAD_TICKS
+        mov     al, 4
+        ja      .err
+        xor     al, al
+        pop     es
+        pop     di
+        pop     cx
+        pop     bx
+        clc
+        ret
+.e1:    mov     al, 1
+        jmp     .err
+.e2:    mov     al, 2
+        jmp     .err
+.e3:    mov     al, 3
+.err:   pop     es
+        pop     di
+        pop     cx
+        pop     bx
+        stc
+        ret
+
+tb_erase:                               ; erase block tb_blk -> CX = timer ticks, CF = error
+        push    ax
+        push    ds
+        xor     cx, cx
+        mov     ds, cx
+        mov     cx, [46Ch]
+        pop     ds
+        mov     [tb_start], cx
+        mov     al, [tb_blk]
+        call    erase_block
+        pushf
+        push    ds
+        xor     cx, cx
+        mov     ds, cx
+        mov     cx, [46Ch]
+        pop     ds
+        sub     cx, [tb_start]
+        popf
+        pop     ax
+        ret
+
+tb_blank:                               ; CF = some byte of block tb_blk is not FFh
+        push    ax
+        push    cx
+        push    di
+        push    es
+        mov     es, [winseg]
+        xor     ah, ah
+.b:     mov     al, [tb_blk]
+        mov     cl, 3
+        shl     al, cl
+        add     al, ah
+        call    set_bank
+        xor     di, di
+        mov     cx, WINDOW_SIZE
+        mov     al, 0FFh
+        repe    scasb
+        jne     .no
+        inc     ah
+        cmp     ah, BANKS_PER_BLOCK
+        jb      .b
+        xor     al, al
+        call    set_bank
+        pop     es
+        pop     di
+        pop     cx
+        pop     ax
+        clc
+        ret
+.no:    xor     al, al
+        call    set_bank
+        pop     es
+        pop     di
+        pop     cx
+        pop     ax
+        stc
+        ret
+
+; test_one: BL = flash block -> test_block and one report line; counts n_good/n_worn/n_bad.
+; CF = bad block.
+test_one:
+        push    ax
+        push    dx
+        PRINT   msg_tb1
+        mov     al, bl
+        xor     ah, ah
+        call    print_dec
+        PRINT   msg_tb2
+        call    test_block
+        pushf
+        push    ax
+        mov     ax, [tb_t1]
+        call    print_secs
+        cmp     byte [tb_full], 0
+        je      .one
+        PRINT   msg_tb3
+        mov     ax, [tb_t2]
+        call    print_secs
+.one:   PRINT   msg_tb4
+        pop     ax
+        popf
+        jc      .bad
+        mov     ax, [tb_t1]
+        cmp     ax, [tb_t2]
+        jae     .m
+        mov     ax, [tb_t2]
+.m:     cmp     ax, ERASE_SLOW_TICKS
+        ja      .worn
+        inc     byte [n_good]
+        PRINT   msg_tb_ok
+        pop     dx
+        pop     ax
+        clc
+        ret
+.worn:  inc     byte [n_worn]
+        PRINT   msg_tb_worn
+        pop     dx
+        pop     ax
+        clc
+        ret
+.bad:   inc     byte [n_bad]
+        mov     dx, msg_tb_e1
+        cmp     al, 1
+        je      .say
+        mov     dx, msg_tb_e2
+        cmp     al, 2
+        je      .say
+        mov     dx, msg_tb_e3
+        cmp     al, 3
+        je      .say
+        mov     dx, msg_tb_e4
+.say:   call    print_dollar
+        pop     dx
+        pop     ax
+        stc
+        ret
+
+; print_secs: AX = timer ticks (55 ms) -> "1.6"
+print_secs:
+        push    ax
+        push    bx
+        push    dx
+        mov     bx, 11
+        mul     bx
+        add     ax, 10
+        adc     dx, 0
+        mov     bx, 20
+        div     bx                      ; tenths of a second
+        xor     dx, dx
+        mov     bx, 10
+        div     bx
+        mov     bx, dx
+        call    print_dec
+        mov     dl, '.'
+        call    print_char
+        mov     dl, bl
+        add     dl, '0'
+        call    print_char
+        pop     dx
+        pop     bx
+        pop     ax
         ret
 
 ; buf_header: AL = logical block -> block header with generation fseq + 1 at [bufseg]:FE00h (fseq += 1).
@@ -687,7 +935,26 @@ remount:
 .end:   ret
 
 desc_sig3:      db      'ISAFLDSK'
+msg_tb1:        db      'Block $'
+msg_tb2:        db      ': erase $'
+msg_tb3:        db      ' s, $'
+msg_tb4:        db      ' s  $'
+msg_tb_ok:      db      'OK', 13, 10, '$'
+msg_tb_worn:    db      'WORN (erase slower than 5 s)', 13, 10, '$'
+msg_tb_e1:      db      'BAD (erase failed)', 13, 10, '$'
+msg_tb_e2:      db      'BAD (bits stay 0 after the erase)', 13, 10, '$'
+msg_tb_e3:      db      'BAD (00h not programmed or not verified)', 13, 10, '$'
+msg_tb_e4:      db      'BAD (erase slower than 10 s)', 13, 10, '$'
 fseq            dd      0
+d_bad           dd      0
+tb_t1           dw      0
+tb_t2           dw      0
+tb_start        dw      0
+tb_blk          db      0
+tb_full         db      0
+n_good          db      0
+n_worn          db      0
+n_bad           db      0
 d_nl            db      0
 d_np            db      0
 fl_free           db      0

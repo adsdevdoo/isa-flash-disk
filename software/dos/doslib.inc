@@ -158,6 +158,10 @@ parse_args:
         je      .m
         cmp     al, 'O'
         je      .o
+        cmp     al, 'A'
+        je      .a
+        cmp     al, 'T'
+        je      .t
 .bad:   PRINT   msg_badarg
         stc
         ret
@@ -168,6 +172,10 @@ parse_args:
 .j:     or      byte [opt_flags], OPT_JUMPER
         jmp     .skip
 .e:     or      byte [opt_flags], OPT_ERASE
+        jmp     .skip
+.a:     or      byte [opt_flags], OPT_ALL
+        jmp     .skip
+.t:     or      byte [opt_flags], OPT_TEST
         jmp     .skip
 .p:     cmp     byte [si], ':'
         jne     .bad

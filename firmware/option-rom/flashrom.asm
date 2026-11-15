@@ -305,6 +305,10 @@ read_desc:
         mov     [r_nl], al
         mov     al, [es:DESC_PBLKS]
         mov     [r_np], al
+        mov     ax, [es:DESC_BAD]
+        mov     [r_bad], ax
+        mov     ax, [es:DESC_BAD + 2]
+        mov     [r_bad + 2], ax
         mov     byte [r_valid], 1
 .out:   xor     al, al
         out     dx, al                  ; bank 0: the ROM is back
@@ -348,6 +352,8 @@ mount:
         mov     [r_seq + 2], ax
         mov     byte [m_p], 1
 .blk:   mov     al, [m_p]
+        call    is_bad
+        jnz     .next
         mov     cl, 3
         shl     al, cl
         add     al, HDR_BANK
@@ -417,12 +423,14 @@ mount:
         cmp     bl, [r_nl]
         jb      .chk
         mov     al, 1                   ; free block = first physical block that holds no logical one
-.fr:    mov     di, r_map
+.fr:    call    is_bad
+        jnz     .frn
+        mov     di, r_map
         mov     cl, [r_nl]
         xor     ch, ch
         repne   scasb
         jne     .free
-        inc     al
+.frn:   inc     al
         cmp     al, [r_np]
         jbe     .fr
         jmp     .ret
@@ -433,6 +441,24 @@ mount:
         mov     [r_rr], ah
         mov     byte [r_valid], 2
 .ret:   ret
+
+; is_bad: AL = flash block -> ZF = 0 when the descriptor marks it bad. Keeps all registers.
+is_bad: push    ax
+        push    bx
+        push    cx
+        mov     cl, al
+        and     cl, 15
+        mov     bx, 1
+        shl     bx, cl
+        test    al, 16
+        jnz     .hi
+        test    [cs:r_bad], bx
+        jmp     .out
+.hi:    test    [cs:r_bad + 2], bx
+.out:   pop     cx
+        pop     bx
+        pop     ax
+        ret
 
 ; ---- INT 13h: hard disk, disk format 3 (docs/programming.md) ----
 int13:
@@ -1192,6 +1218,7 @@ r_heads         dw      0
 r_spt           dw      0
 r_total         dw      0
 r_seq           dd      0
+r_bad           dd      0
 r_old13         dd      0
 r_old19         dd      0
 w_seg           dw      0

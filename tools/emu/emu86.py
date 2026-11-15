@@ -40,12 +40,19 @@ class Flash:
         self.programs = 0
         self.erases = 0
         self.block_erases = [0] * 16
+        self.busy = 0                   # status reads that still show SR.7 = 0 (busy)
+        self.erase_polls = {}           # block -> status reads an erase takes (a worn block erases slowly)
+        self.erase_fail = set()         # blocks whose erase ends with SR.5 (erase error)
+        self.stuck1 = {}                # address -> bits that cannot be programmed to 0
 
     def read(self, addr):
         if self.mode == "array":
             return self.mem[addr]
         if self.mode == "id":
             return 0x89 if (addr & 1) == 0 else 0xA2
+        if self.busy:
+            self.busy -= 1
+            return self.sr & 0x7F
         return self.sr
 
     def write(self, addr, val, vpp_ok):
@@ -56,6 +63,9 @@ class Flash:
                 self.sr |= 0x08 | 0x10
             else:
                 self.mem[addr] &= val
+                self.mem[addr] |= self.stuck1.get(addr, 0)
+                if self.mem[addr] != (self.mem[addr] & val):
+                    self.sr |= 0x10     # the write state machine could not program every bit
                 self.programs += 1
             self.sr |= 0x80
             return
@@ -66,8 +76,11 @@ class Flash:
                 self.sr |= 0x30
             elif not vpp_ok:
                 self.sr |= 0x08 | 0x20
+            elif (addr >> 16) in self.erase_fail:
+                self.sr |= 0x20
             else:
                 base = addr & 0xF0000
+                self.busy = self.erase_polls.get(addr >> 16, 0)
                 self.mem[base:base + 0x10000] = b"\xff" * 0x10000
                 self.erases += 1
                 self.block_erases[base >> 16] += 1
@@ -209,6 +222,8 @@ class PC:
         if not force and key == self.view_key:
             return
         self.view_key = key
+        if not force and key != (0, "array", None):
+            return                      # data reads are hooked; only the ROM code in bank 0 is fetched from RAM
         self.uc.mem_write(self.card.window * 16, self.card.view())
 
     def _in(self, uc, port, size, user):

@@ -81,10 +81,13 @@ def inv(data):
 def block_map(card, chips):
     """Same rule as the ROM and the utilities: for each logical block, the complete copy with the highest
     generation (firmware/include/isaflash.inc, HDR_*)."""
-    nl, np_ = chips * 16 - 2, chips * 16 - 1
     img = card.image()
+    nl, np_ = img[0x2016], img[0x2017]
+    bad = struct.unpack_from("<I", img, 0x2018)[0]
     best = {}
     for p in range(1, np_ + 1):
+        if bad >> p & 1:
+            continue
         h = img[p * 0x10000 + 0xFE00:p * 0x10000 + 0xFE00 + 17]
         if h[0:4] != b"FLBK" or h[4] ^ 0xFF != h[5] or h[4] >= nl or h[16] != 0:
             continue
@@ -98,10 +101,60 @@ def block_map(card, chips):
 
 def logical_disk(card, chips):
     m = block_map(card, chips)
-    if len(m) != chips * 16 - 2:
-        return None
     img = card.image()
-    return b"".join(inv(img[m[lb] * 0x10000:m[lb] * 0x10000 + LBLK * 512]) for lb in range(chips * 16 - 2))
+    if len(m) != img[0x2016]:
+        return None
+    return b"".join(inv(img[m[lb] * 0x10000:m[lb] * 0x10000 + LBLK * 512]) for lb in range(img[0x2016]))
+
+
+def fltest_checks(port, window, args, tmp):
+    """FLTEST and FLFORMAT /E /T on one chip with a worn block, a block with a stuck bit and a block that erases
+    slower than 10 s."""
+    print("\n--- FLTEST, FLFORMAT /E /T (1 chip) ---")
+    card = emu86.Card(chips=1, jumper=True, port=port, window=window)
+    pc = emu86.PC(card, tmp)
+    code, out = pc.run_com(com("FLTEST.COM"), "/A /Y" + args)
+    check(code == 0 and out.count(" OK\r\n") == 16 and "OK: 16, WORN: 0, BAD: 0" in out,
+          "FLTEST /A on a new chip: 16 blocks OK, exit code 0")
+    pc.run_com(com("FLFORMAT.COM"), "FLASHROM.BIN /Y /E" + args)
+    disk = make_disk(1778, seed=7)
+    with open(os.path.join(tmp, "DISK1.IMG"), "wb") as f:
+        f.write(disk)
+    pc.run_com(com("FLWRITE.COM"), "DISK1.IMG /D /Y" + args)
+    f0 = card.flash[0]
+    f0.erase_polls[5] = 120                     # about 6.6 s: worn
+    code, out = pc.run_com(com("FLTEST.COM"), "/Y" + args)
+    check(code == 4 and out.count("Block ") == 15 and "Block 5: erase" in out and out.count("WORN (") == 1
+          and logical_disk(card, 1) == bytes(disk), "FLTEST: 15 disk blocks tested, block 5 WORN (exit 4), data kept")
+    f0.stuck1[9 * 0x10000 + 0x1234] = 0x04      # a bit that cannot be programmed
+    code, out = pc.run_com(com("FLTEST.COM"), "/Y" + args)
+    check(code == 5 and "BAD (00h not programmed" in out and "the free block is bad" in out
+          and logical_disk(card, 1) == bytes(disk), "FLTEST: block with a stuck bit BAD (exit 5), stops, data kept")
+    f0.erase_polls[11] = 250                    # about 14 s: slower than the datasheet maximum
+    code, out = pc.run_com(com("FLFORMAT.COM"), "FLASHROM.BIN /Y /E /T" + args)
+    img = card.image()
+    bad = struct.unpack_from("<I", img, 0x2018)[0]
+    check(code == 0 and bad == (1 << 9) | (1 << 11) and img[0x2016] == 12
+          and struct.unpack_from("<HHHH", img, 0x200C) == (127, 2, 6, 1524) and "Bad blocks left out: 2" in out,
+          "FLFORMAT /E /T: blocks 9 and 11 bad, 12 logical blocks, 127/2/6")
+    code, out = pc.run_com(com("FLINFO.COM"), args.strip())
+    check("Bad blocks (not used): 9 11" in out, "FLINFO lists the bad blocks")
+    card.reset()
+    pc = emu86.PC(card, tmp)
+    out = pc.far_call(window, 3)
+    check("ISA Flash Disk: 762 KB" in out, "ROM mounts the smaller disk: %r" % out.strip())
+    GEO["spt"] = 6
+    e9, e11 = f0.block_erases[9], f0.block_erases[11]
+    lba = 4 * LBLK + 3
+    cur = bytearray(1524 * 512)
+    ok = True
+    for i in range(24):
+        data = bytes([0x55 if i & 1 else 0xAA]) * 512
+        ax, cf, _ = int13_write(pc, lba, data)
+        cur[lba * 512:(lba + 1) * 512] = data
+        ok = ok and cf == 0
+    check(ok and logical_disk(card, 1) == bytes(cur) and f0.block_erases[9] == e9 and f0.block_erases[11] == e11,
+          "24 rewrites through INT 13h never touch the bad blocks")
 
 
 def make_floppy(dos3):
@@ -472,6 +525,10 @@ def scenario(chips, port, window, tmp):
     vec13 = struct.unpack("<HH", pc.read(0x13 * 4, 4))
     check("no disk (format 3)" in out and struct.unpack("<H", pc.read(0x413, 2))[0] == 640
           and vec13[1] == emu86.STUB_SEG, "no disk: message, 640 KB kept, INT 13h untouched")
+
+    if chips == 1:
+        fltest_checks(port, window, args, tmp)
+        GEO["spt"] = spt
 
     # 13. Descriptor without block headers: "block map damaged"
     nohdr = copy.deepcopy(card)

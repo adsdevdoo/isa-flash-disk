@@ -45,6 +45,7 @@ DESC_TOTAL      equ 12h         ; dw disk sectors = 127 * logical blocks
 DESC_DATA       equ 14h         ; dw first data sector (linear sector number, 128)
 DESC_LBLKS      equ 16h         ; db logical blocks (chips * 16 - 2)
 DESC_PBLKS      equ 17h         ; db physical data blocks: flash blocks 1 .. PBLKS (chips * 16 - 1)
+DESC_BAD        equ 18h         ; dd bad flash blocks: bit n = block n is never used (found by FLFORMAT /E)
 DESC_FORMAT     equ 3           ; disk format version
 DESC_CHECKSUM   equ 1FFh        ; byte: all 512 bytes sum to 0 (mod 256)
 DESC_SIGNATURE  equ 'ISAFLDSK'
@@ -65,6 +66,8 @@ HDR_LBLK        equ 04h         ; db logical block, db NOT logical block
 HDR_GEN         equ 08h         ; dd generation, dd NOT generation (higher = newer)
 HDR_VALID       equ 10h         ; db 00h: the copy is complete (programmed last)
 HDR_LEN         equ 11h
+ERASE_SLOW_TICKS equ 91        ; 5 s: a block erase slower than this = worn (typ. 1.6 s, max 10 s, DS p. 34)
+ERASE_BAD_TICKS equ 182         ; 10 s: slower than the datasheet maximum = bad block
 RELOC_MASK      equ 7           ; after a rewrite whose generation is a multiple of 8, move one more block
                                 ; round-robin, so a hot block does not wear out two flash blocks only
 INT13_REMOUNT   equ 0F1h        ; private INT 13h call: BX = REMOUNT_KEY -> descriptor and block map read again

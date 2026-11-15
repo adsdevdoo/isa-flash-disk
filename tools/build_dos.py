@@ -4,7 +4,7 @@
 Usage: python tools/build_dos.py [path-to-nasm]
        (or set NASM=...; default: "nasm" from PATH)
 
-Outputs: dist/FLASHROM.BIN (8192 bytes, checksum fixed), dist/FLINFO.COM, FLREAD.COM, FLWRITE.COM, FLFORMAT.COM.
+Outputs: dist/FLASHROM.BIN (8192 bytes, checksum fixed), dist/FLINFO.COM, FLREAD.COM, FLWRITE.COM, FLFORMAT.COM, FLTEST.COM.
 All sources are assembled with "cpu 8086", so nothing newer than an 8088 instruction can slip in.
 """
 
@@ -20,7 +20,7 @@ NASM = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("NASM", "nasm")
 
 ROM = (ROOT / "firmware" / "option-rom" / "flashrom.asm", "FLASHROM.BIN")
 COMS = [(ROOT / "software" / "dos" / n, n.replace(".asm", ".COM").upper())
-        for n in ("flinfo.asm", "flread.asm", "flwrite.asm", "flformat.asm")]
+        for n in ("flinfo.asm", "flread.asm", "flwrite.asm", "flformat.asm", "fltest.asm")]
 SECTORS = [(ROOT / "firmware" / "mbr" / "mbr.asm", "MBR.BIN"), (ROOT / "firmware" / "mbr" / "vbrstub.asm", "VBRSTUB.BIN")]
 
 

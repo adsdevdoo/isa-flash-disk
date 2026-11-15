@@ -1,12 +1,15 @@
 ; FLFORMAT.COM - install the option ROM and the disk descriptor into flash block 0.
-; Usage: FLFORMAT romfile [/E] [/Y] [/M:seg] [/P:port]
+; Usage: FLFORMAT romfile [/E [/T]] [/Y] [/M:seg] [/P:port]
 ;   romfile  FLASHROM.BIN (8192 bytes); the card's I/O port is written into it and the checksum fixed
-;   /E       also erase the whole disk and write an empty disk: block headers for logical blocks 0..n-1 in
-;            flash blocks 1..n, the last flash block free
+;   /E       also erase and test every disk block (erase time, all FFh) and write an empty disk: block headers
+;            for the logical blocks in the good flash blocks; blocks that fail or erase slower than 10 s are
+;            marked bad in the descriptor and never used
+;   /T       with /E: the full block test of FLTEST (also programs 00h into every byte and verifies)
 ;   /Y       do not ask for confirmation
-; Disk format 3 (docs/programming.md): logical blocks of 127 sectors, one flash block more than logical blocks.
-; Geometry 127 cylinders x 2 heads x (logical blocks / 2): 1 chip = 127/2/7 (1778 sectors),
-; 2 chips = 127/2/15 (3810 sectors). A disk of an older format must be erased (/E) and written again.
+; Disk format 3 (docs/programming.md): logical blocks of 127 sectors, one good flash block more than logical
+; blocks (the number of logical blocks is kept even). Geometry 127 cylinders x 2 heads x (logical blocks / 2):
+; 1 chip = 127/2/7 (1778 sectors), 2 chips = 127/2/15 (3810 sectors) when no block is bad.
+; Without /E the disk and its bad block list stay. A disk of an older format must be erased (/E) and written again.
 ; Needs the WRITE jumper JP1.
 
         cpu     8086
@@ -33,15 +36,7 @@ start:  cld
         mov     dx, msg_nomem
         jmp     die
 
-.mem:   ; block 0 image = FFh
-        push    es
-        mov     es, [bufseg]
-        xor     di, di
-        mov     ax, 0FFFFh
-        mov     cx, 8000h
-        rep     stosw
-        pop     es
-        ; ROM file -> buffer:0, must be exactly 8192 bytes
+.mem:   ; ROM file -> rombuf, must be exactly 8192 bytes with 55AA and 'ISAFLASH'
         mov     dx, fname
         mov     ax, 3D00h
         int     21h
@@ -50,13 +45,10 @@ start:  cld
         jmp     die
 .opened:
         mov     bx, ax
-        push    ds
-        mov     ds, [bufseg]
-        xor     dx, dx
+        mov     dx, rombuf
         mov     cx, ROM_SIZE + 1
         mov     ah, 3Fh
         int     21h
-        pop     ds
         pushf
         push    ax
         mov     ah, 3Eh
@@ -66,16 +58,102 @@ start:  cld
         jc      .badrom
         cmp     ax, ROM_SIZE
         jne     .badrom
-        push    es
-        mov     es, [bufseg]
-        cmp     word [es:0], 0AA55h
-        jne     .badrom_es
-        mov     di, ROMH_SIG
+        cmp     word [rombuf], 0AA55h
+        jne     .badrom
+        mov     di, rombuf + ROMH_SIG
         mov     si, rom_sig
         mov     cx, 8
+        push    es
+        push    cs
+        pop     es
         repe    cmpsb
-        jne     .badrom_es
-        ; port and checksum
+        pop     es
+        je      .romok
+.badrom:
+        mov     dx, msg_badrom
+        jmp     die
+
+.romok: mov     al, [chips]
+        mov     cl, 4
+        shl     al, cl                  ; 16 flash blocks per chip
+        dec     al
+        mov     [f_np], al              ; disk blocks 1 .. chips * 16 - 1
+        test    byte [opt_flags], OPT_ERASE
+        jnz     .erase
+
+        ; without /E: keep the disk, its bad blocks and so its geometry
+        xor     ax, ax
+        mov     [d_bad], ax
+        mov     [d_bad + 2], ax
+        call    load_desc
+        jnc     .layout
+        xor     ax, ax                  ; no format 3 descriptor: no bad blocks known
+        mov     [d_bad], ax
+        mov     [d_bad + 2], ax
+        jmp     .layout
+
+.erase: PRINT   msg_ask_erase
+        mov     dx, msg_ask
+        call    ask_yes
+        je      .etest
+        mov     dx, msg_cancel
+        jmp     die
+.etest: call    vpp_test
+        test    al, SR_VPP_LOW
+        jz      .tst
+        mov     dx, msg_jumper
+        jmp     die
+.tst:   xor     ax, ax
+        mov     [d_bad], ax
+        mov     [d_bad + 2], ax
+        test    byte [opt_flags], OPT_TEST
+        jz      .t0
+        mov     byte [tb_full], 1
+.t0:    mov     bl, 1
+.t1:    call    test_one
+        jnc     .t2
+        mov     al, bl
+        call    set_bad_d
+.t2:    inc     bl
+        cmp     bl, [f_np]
+        jbe     .t1
+
+.layout:                                ; good blocks -> logical blocks (one good block stays free, count even)
+        xor     cl, cl
+        mov     al, 1
+.cnt:   call    is_bad_d
+        jnz     .cn
+        inc     cl
+.cn:    inc     al
+        cmp     al, [f_np]
+        jbe     .cnt
+        cmp     cl, 3
+        jae     .nlok
+        mov     dx, msg_toobad
+        jmp     die
+.nlok:  dec     cl
+        and     cl, 0FEh
+        mov     [f_nl], cl
+        mov     al, cl
+        xor     ah, ah
+        shr     al, 1
+        mov     [spt], ax
+        mov     al, cl
+        mov     cl, SECTORS_PER_LBLK
+        mul     cl
+        mov     [total], ax
+
+        ; block 0 image: FFh, the ROM with the port and checksum, the descriptor
+        push    es
+        mov     es, [bufseg]
+        xor     di, di
+        mov     ax, 0FFFFh
+        mov     cx, 8000h
+        rep     stosw
+        xor     di, di
+        mov     si, rombuf
+        mov     cx, ROM_SIZE / 2
+        rep     movsw
         mov     ax, [port]
         mov     [es:ROMH_PORT], ax
         xor     si, si
@@ -86,8 +164,6 @@ start:  cld
         loop    .rsum
         neg     ah
         mov     [es:ROM_SIZE - 1], ah
-
-        ; descriptor at 2000h
         mov     di, DESC_LINEAR
         xor     ax, ax
         mov     cx, SECTOR_SIZE / 2
@@ -99,27 +175,21 @@ start:  cld
         mov     word [es:DESC_LINEAR + DESC_VERSION], DESC_FORMAT
         mov     al, [chips]
         mov     [es:DESC_LINEAR + DESC_CHIPS], al
-        mov     cl, 4
-        shl     al, cl                  ; 16 flash blocks per chip
-        dec     al
-        mov     [es:DESC_LINEAR + DESC_PBLKS], al  ; data blocks 1 .. chips * 16 - 1
-        mov     [f_np], al
-        dec     al
-        mov     [es:DESC_LINEAR + DESC_LBLKS], al  ; one physical block more than logical blocks
-        mov     [f_nl], al
-        xor     ah, ah
-        push    ax
-        shr     al, 1
-        mov     [es:DESC_LINEAR + DESC_SPT], ax    ; 127 x 2 x (logical blocks / 2) = all sectors
-        mov     [spt], ax
-        pop     ax
-        mov     cl, SECTORS_PER_LBLK
-        mul     cl
+        mov     al, [f_np]
+        mov     [es:DESC_LINEAR + DESC_PBLKS], al
+        mov     al, [f_nl]
+        mov     [es:DESC_LINEAR + DESC_LBLKS], al
+        mov     ax, [spt]
+        mov     [es:DESC_LINEAR + DESC_SPT], ax
+        mov     ax, [total]
         mov     [es:DESC_LINEAR + DESC_TOTAL], ax
-        mov     [total], ax
         mov     word [es:DESC_LINEAR + DESC_CYLS], DISK_CYLS
         mov     word [es:DESC_LINEAR + DESC_HEADS], DISK_HEADS
         mov     word [es:DESC_LINEAR + DESC_DATA], DATA_FIRST_SECTOR
+        mov     ax, [d_bad]
+        mov     [es:DESC_LINEAR + DESC_BAD], ax
+        mov     ax, [d_bad + 2]
+        mov     [es:DESC_LINEAR + DESC_BAD + 2], ax
         mov     si, DESC_LINEAR
         mov     cx, SECTOR_SIZE - 1
         xor     ah, ah
@@ -145,20 +215,18 @@ start:  cld
         call    print_dec
         PRINT   msg_plan4
         test    byte [opt_flags], OPT_ERASE
-        jz      .ask
-        PRINT   msg_plan_erase
-.ask:   mov     dx, msg_ask
+        jnz     .b0                     ; asked before the erase already
+        mov     dx, msg_ask
         call    ask_yes
         je      .go
         mov     dx, msg_cancel
         jmp     die
-
 .go:    call    vpp_test
         test    al, SR_VPP_LOW
-        jz      .vpp
+        jz      .b0
         mov     dx, msg_jumper
         jmp     die
-.vpp:   PRINT   msg_block0
+.b0:    PRINT   msg_block0
         xor     bl, bl
         call    write_block
         jnc     .b0ok
@@ -167,30 +235,42 @@ start:  cld
 
         test    byte [opt_flags], OPT_ERASE
         jz      .check
-        PRINT   msg_erasing
+        PRINT   msg_headers             ; empty disk: logical blocks 0.. in the good blocks, in order
         mov     byte [blk], 1
-.er:    push    es                      ; flash block blk = FFh with the header of logical block blk - 1,
-        mov     es, [bufseg]            ; the last one stays free
+        mov     byte [lblk], 0
+.hd:    mov     al, [blk]
+        call    is_bad_d
+        jnz     .hn
+        mov     al, [lblk]
+        cmp     al, [f_nl]
+        jae     .hn
+        push    es
+        mov     es, [bufseg]
         xor     di, di
         mov     ax, 0FFFFh
         mov     cx, 8000h
         rep     stosw
         pop     es
-        mov     al, [blk]
-        cmp     al, [f_np]
-        je      .nohdr
-        dec     al
+        mov     al, [lblk]
         call    buf_header
-.nohdr: mov     bl, [blk]
-        call    write_block
+        mov     bl, [blk]
+        call    write_block             ; the block is erased: only the header is programmed
         jc      .fail
+        inc     byte [lblk]
         mov     dl, '.'
         call    print_char
-        inc     byte [blk]
+.hn:    inc     byte [blk]
         mov     al, [blk]
         cmp     al, [f_np]
-        jbe     .er
+        jbe     .hd
         call    print_crlf
+        cmp     byte [n_bad], 0
+        je      .done
+        PRINT   msg_nbad1
+        mov     al, [n_bad]
+        xor     ah, ah
+        call    print_dec
+        PRINT   msg_nbad2
         jmp     .done
 
 .check: call    load_desc               ; without /E the disk stays: it must already be format 3
@@ -213,12 +293,6 @@ start:  cld
         mov     dx, msg_failend
         jmp     die
 
-.badrom_es:
-        pop     es
-.badrom:
-        mov     dx, msg_badrom
-        jmp     die
-
 usage:  PRINT   msg_usage
         mov     al, 2
         mov     ah, 4Ch
@@ -230,28 +304,33 @@ usage:  PRINT   msg_usage
 total           dw      0
 spt             dw      0
 blk             db      0
+lblk            db      0
 f_np            db      0
 f_nl            db      0
 desc_sig:       db      'ISAFLDSK'
 msg_banner:     db      'FLFORMAT 1.2 - ISA Flash Disk', 13, 10, '$'
-msg_usage:      db      'Usage: FLFORMAT romfile [/E] [/Y] [/M:seg] [/P:port]', 13, 10
+msg_usage:      db      'Usage: FLFORMAT romfile [/E [/T]] [/Y] [/M:seg] [/P:port]', 13, 10
                 db      '  romfile  FLASHROM.BIN', 13, 10
-                db      '  /E       also erase the whole disk area', 13, 10
+                db      '  /E       also erase and test the disk blocks, leave bad ones out', 13, 10
+                db      '  /T       with /E: full block test (00h pattern too)', 13, 10
                 db      '  /Y       no confirmation', 13, 10, '$'
 msg_nomem:      db      'Not enough memory (needs 128 KB).', 13, 10, '$'
 msg_open:       db      'Cannot open the ROM file.', 13, 10, '$'
 msg_badrom:     db      'Not an ISA Flash Disk ROM image (8192 bytes, 55AA, ISAFLASH).', 13, 10, '$'
-msg_plan1:      db      'Install the option ROM (port $'
-msg_plan2:      db      'h) and the disk descriptor: C/H/S $'
+msg_ask_erase:  db      'ERASE the whole disk, test every block and install the option ROM.', 13, 10, '$'
+msg_toobad:     db      'Too many bad blocks for a disk.', 13, 10, '$'
+msg_plan1:      db      'Option ROM (port $'
+msg_plan2:      db      'h) and disk descriptor: C/H/S $'
 msg_plan3:      db      '/2/$'
 msg_plan3b:     db      ', $'
 msg_plan4:      db      ' KB.', 13, 10, '$'
-msg_plan_erase: db      'ERASE the whole disk area as well.', 13, 10, '$'
 msg_ask:        db      'Continue? (Y/N) $'
 msg_cancel:     db      'Cancelled.', 13, 10, '$'
 msg_block0:     db      'Block 0 (ROM + descriptor): $'
 msg_ok:         db      'OK', 13, 10, '$'
-msg_erasing:    db      'Erasing the disk $'
+msg_headers:    db      'Empty disk: block headers $'
+msg_nbad1:      db      'Bad blocks left out: $'
+msg_nbad2:      db      '.', 13, 10, '$'
 msg_nomap:      db      'The disk has no format 3 block map: run FLFORMAT with /E.', 13, 10, '$'
 msg_fail:       db      'FAILED, status $'
 msg_failend:    db      'h.', 13, 10, '$'
@@ -260,3 +339,4 @@ msg_done:       db      'Done. Restart the computer to load the new ROM.', 13, 1
         section .bss
 fname:          resb    128
 tmpbuf:         resb    WINDOW_SIZE
+rombuf:         resb    ROM_SIZE + 16
