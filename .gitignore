@@ -1,0 +1,20 @@
+# KiCad
+*-backups/
+*.kicad_prl
+fp-info-cache
+_autosave-*
+*.lck
+
+# Build output
+*.obj
+*.o
+*.map
+*.lst
+*.err
+build/
+
+# Editors and OS
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
