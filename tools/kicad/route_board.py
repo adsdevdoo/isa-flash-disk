@@ -395,8 +395,38 @@ def place_silkscreen(b, fps):
             w, _ = sp.size(label, TEXT_SIZE)
             x, y = sp.place(label, [(x0 - 0.3 - w / 2, py)])
             text(b, label, x, y)
+    # Slot orientation, as on other 8-bit cards: contact numbers at both ends, side name, arrow to the bracket.
+    ty = BODY_BOTTOM - 1.6
+    ys = [ty - 0.3 * k for k in range(0, 10)]
+    for label, x in (("A31", 2.54), ("A1", 78.74)):
+        x, y = sp.place(label, [(x + dx, yy) for yy in ys for dx in (0, 1.5, -1.5)])
+        text(b, label, x, y)
+    s = "8-BIT ISA  COMPONENT SIDE"
+    x, y = sp.place(s, [(cx, yy) for yy in ys for cx in (40.6, 34.0, 47.0)])
+    text(b, s, x, y)
+    ay = BODY_BOTTOM - 4.0
+    x0, x1 = 84.0, 96.0
+    s = "BRACKET"
+    tx, tyy = sp.place(s, [((x0 + x1) / 2, ay - 1.4), ((x0 + x1) / 2, ay - 2.0)])
+    text(b, s, tx, tyy)
+    sp.texts.append((x0 - 0.2, ay - 0.9, x1 + 0.2, ay + 0.9))
+    for a, z in (((x0, ay), (x1, ay)), ((x1, ay), (x1 - 1.4, ay - 0.8)), ((x1, ay), (x1 - 1.4, ay + 0.8))):
+        seg = p.PCB_SHAPE(b)
+        seg.SetShape(p.SHAPE_T_SEGMENT)
+        seg.SetStart(V(*a))
+        seg.SetEnd(V(*z))
+        seg.SetLayer(p.F_SilkS)
+        seg.SetWidth(p.FromMM(0.2))
+        b.Add(seg)
+
     # Bottom side: title and the full switch tables (text mirrored, reads from the bottom).
     spb = SilkPlacer(fps, vias, bottom=True)
+    for label, x in (("B31", 2.54), ("B1", 78.74)):
+        x, y = spb.place(label, [(x + dx, yy) for yy in ys for dx in (0, 1.5, -1.5)])
+        text(b, label, x, y, layer=p.B_SilkS)
+    s = "8-BIT ISA  SOLDER SIDE"
+    x, y = spb.place(s, [(cx, yy) for yy in ys for cx in (40.6, 34.0, 47.0)])
+    text(b, s, x, y, layer=p.B_SilkS)
     for s_, h_, cy in (("ISA FLASH DISK rev A", 1.5, 70.0), ("github.com/adsdevdoo/isa-flash-disk", TEXT_SIZE, 72.6)):
         x_, y_ = spb.place(s_, [(cx, cy + d) for d in (0, 2, 4, -2, -4) for cx in (W / 2, W / 2 - 10, W / 2 + 10)], s_ and h_)
         text(b, s_, x_, y_, h_, layer=p.B_SilkS, bold=(h_ > TEXT_SIZE))
