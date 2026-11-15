@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "isa_flash_disk")(type "KiCad")(uri "${KIPRJMOD}/isa_flash_disk.pretty")(options "")(descr "ISA Flash Disk project footprints"))
+)

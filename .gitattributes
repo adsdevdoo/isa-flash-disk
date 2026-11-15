@@ -4,3 +4,11 @@
 *.png binary
 *.jpg binary
 *.zip binary
+*.kicad_sch text eol=lf
+*.kicad_pcb text eol=lf
+*.kicad_sym text eol=lf
+*.kicad_mod text eol=lf
+*.kicad_pro text eol=lf
+sym-lib-table text eol=lf
+fp-lib-table text eol=lf
+.generated.sha256 text eol=lf

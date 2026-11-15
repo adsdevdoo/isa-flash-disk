@@ -15,11 +15,15 @@
 | Intel AP-364 28F008SA Automation and Algorithms (01/1996) | архив `download.intel.com/design/archives/flash/docs/29209903.pdf` (зеркало peertje.daanberg.net) | [datasheets/intel-ap-364-…](datasheets/intel-ap-364-28f008sa-automation-algorithms-292099-003.pdf) |
 | IBM 5160/5155 Technical Reference 6139821 (1986) | sharktastica.co.uk | [references/ibm-5160-…](references/ibm-5160-technical-reference-6139821-1986.pdf) |
 | IBM 5170 AT Technical Reference 6183355 (03/1986) | bitsavers: `pdf/ibm/pc/at/` | [references/ibm-5170-…](references/ibm-5170-technical-reference-6183355-mar86.pdf) |
+| Intel «PSOP: 44 Lead Plastic Small Outline Package Drawing» v1.0 | архив Intel `DESIGN/FLCOMP/PACKDATA/2232_1.PDF` (зеркало intel-vintage-developer.eu5.org) | [datasheets/intel-psop-44-package-2232-1.pdf](datasheets/intel-psop-44-package-2232-1.pdf) |
+| TI CD74HCT688, SN74HCT138, SN74HCT273, CD74HCT175, SN74HCT32, SN74HCT04, SN74LS245 | ti.com | `datasheets/ti-*.pdf` |
+| AOS AO3407A, onsemi 2N7002L | aosmd.com, onsemi.com | `datasheets/aos-ao3407a.pdf`, `datasheets/onsemi-2n7002l.pdf` |
+
+Распиновки 74HCT688, 74HCT175 и 74LS245 сверены с рисунками даташитов и с символами KiCad 9.
 
 Не найдены:
 
 - **28F008SA Specification Update 297183** (errata). Номер указан в DS на с. 42, но документа в открытых архивах нет.
-- **Intel Packaging Handbook** с чертежом PSOP-44. Без него посадочное место строится по замерам.
 - **IEEE P996** (спецификация ISA с временными параметрами). Удержание данных при записи проверяем осциллографом.
 
 ## Микросхема
@@ -63,9 +67,16 @@
 
 - CompactFlash — это устройство ATA со своим контроллером. 28F008SA — «сырая» память без контроллера,
   поэтому XT-IDE Universal BIOS с ней работать не может. Нужен собственный Option ROM.
-- Файлы проекта (схема, плата) **скопировать нельзя**: в репозитории нет лицензии (GitHub API `license: null`),
-  значит, по умолчанию все права у автора. Используем только как образец подхода. Если понадобится взять его файлы
-  напрямую, нужно разрешение автора.
+- В репозитории XT-CF-Lite нет лицензии (GitHub API `license: null`). Владелец isa-flash-disk сообщил, что это
+  его проект; после подтверждения его файлы (контур платы, планка, краевой разъём) можно использовать на этапе 5.
+  Схема rev A от XT-CF-Lite не заимствует ничего, кроме подхода.
+
+## Правила из retro535
+
+Из проекта [adsdevdoo/retro535](https://github.com/adsdevdoo/retro535) того же владельца перенесены рабочие правила:
+генераторы не затирают ручные правки KiCad, все посадочные места лежат в библиотеке проекта, площадки 0805 — под
+ручную пайку, отчёты ERC/DRC относятся к последним файлам, явный статус в README, правила JLCPCB и визуальной
+проверки платы. Сводка — в [AGENTS.md](../AGENTS.md).
 
 ## Решения этапа 1
 
@@ -80,10 +91,9 @@
 
 | Вопрос | Как закрываем | Этап |
 |---|---|---|
-| Размеры корпуса PSOP-44 для посадочного места | замеры штангенциркулем ([testing.md](testing.md)) | 1 |
-| Суффикс скорости на микросхемах (-85 / -120) | переписать с корпуса | 1 |
+| Корпус снятых микросхем совпадает с чертежом Intel | контроль одной микросхемы перед заказом ([testing.md](testing.md)) | 5 |
+| Ограничение размера платы 100 мм (как в retro535) | уточнить у владельца | 5 |
 | Удержание данных после −MEMW на реальных машинах | осциллограф на прототипе | 2 |
 | +12 В на реальных машинах | мультиметр, перед первой записью | 2 |
 | −MEMCS16 от VGA в блоке C0000h…DFFFFh | тест на AT/386 с 16-битной VGA | 2 |
 | Загрузка с диска 80h на разных BIOS | тесты в 86Box и на железе | 4 |
-| Лицензия проекта | решает владелец репозитория | — |

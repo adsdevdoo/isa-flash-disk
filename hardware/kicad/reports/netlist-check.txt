@@ -1,0 +1,1 @@
+expected nets: 81, netlist nets: 134, problems: 0, single-pin nets: none
