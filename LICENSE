@@ -23,7 +23,8 @@ SOFTWARE.
 ---
 
 Third-party documents in docs/datasheets/ and docs/references/ (Intel, IBM,
-Texas Instruments, Alpha & Omega Semiconductor, onsemi) are NOT covered by this
+Texas Instruments, Alpha & Omega Semiconductor, onsemi, Keystone Electronics,
+Kingtek, FH) are NOT covered by this
 license and remain the property of their respective owners. Stock KiCad
 footprints copied into hardware/kicad/isa_flash_disk.pretty/ keep the KiCad
 library license (CC-BY-SA 4.0 with the KiCad library exception).

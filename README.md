@@ -93,7 +93,7 @@
 | [docs/memory-map.md](docs/memory-map.md) | адреса окна и портов, регистры, разметка флеш |
 | [docs/programming.md](docs/programming.md) | Option ROM, утилиты DOS, первая запись ПЗУ, запись на диск из DOS |
 | [docs/testing.md](docs/testing.md) | замеры и проверки |
-| [docs/assembly.md](docs/assembly.md) | сборка карты |
+| [docs/assembly.md](docs/assembly.md) | сборка карты, детали с артикулами LCSC, распечатка платы 1:1 |
 | [docs/manufacturing.md](docs/manufacturing.md) | заказ платы в JLCPCB, что проверено |
 | [docs/models.md](docs/models.md) | 3D-модели и их ограничения |
 
@@ -114,5 +114,5 @@ tools/         вспомогательные скрипты для сборки
 
 ## Лицензия
 
-[MIT](LICENSE). Документы Intel, IBM, TI, AOS и onsemi в `docs/datasheets/` и `docs/references/` под эту
+[MIT](LICENSE). Документы Intel, IBM, TI, AOS, onsemi, Keystone, Kingtek и FH в `docs/datasheets/` и `docs/references/` под эту
 лицензию не подпадают и принадлежат их владельцам.
