@@ -1,4 +1,4 @@
-"""Import the FreeRouting session, pour GND on both layers, add silkscreen, save the final board.
+"""Import the FreeRouting session, pour GND on both layers, add the silkscreen (silk_board.py), save the board.
 
 Run with KiCad 9 Python after make_board.py and FreeRouting:
     java -jar freerouting-2.5.0.jar -de hardware/kicad/build/placed.dsn -do hardware/kicad/build/placed.ses -mp 100
@@ -29,32 +29,13 @@ STAMP = HW / ".generated-pcb.sha256"
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from make_board import OX, OY, W, H, BODY_BOTTOM, V  # noqa: E402
 
-# Silkscreen limits taken over from retro535 (JLCPCB): text >= 1.0 mm, stroke 0.15 mm, clearance 0.15 mm.
-TEXT_SIZE = 1.0
-TEXT_THICK = 0.15
-
-TP_LABEL = {"TP1": "+12V", "TP2": "VPP", "TP3": "GND", "TP4": "+5V", "TP5": "WE#", "TP6": "R/B0", "TP7": "R/B1"}
+# The silkscreen (designators, values, labels, bottom block) is defined only in silk_board.py; it also runs
+# standalone on the routed board without touching copper.
+from silk_board import TEXT_SIZE, TEXT_THICK, place_silkscreen, set_title_block, stable_uuids  # noqa: E402
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
-
-
-def text(b, s, x, y, size=TEXT_SIZE, layer=p.F_SilkS, bold=False, justify=None):
-    t = p.PCB_TEXT(b)
-    t.SetText(s)
-    t.SetPosition(V(x, y))
-    t.SetLayer(layer)
-    t.SetTextSize(p.VECTOR2I(p.FromMM(size), p.FromMM(size)))
-    t.SetTextThickness(p.FromMM(TEXT_THICK * (1.4 if bold else 1.0)))
-    if justify == "left":
-        t.SetHorizJustify(p.GR_TEXT_H_ALIGN_LEFT)
-    elif justify == "right":
-        t.SetHorizJustify(p.GR_TEXT_H_ALIGN_RIGHT)
-    if layer == p.B_SilkS:
-        t.SetMirrored(True)
-    b.Add(t)
-    return t
 
 
 def gnd_zone(b, layer):
@@ -267,228 +248,6 @@ def fix_clearance(b, clearance=0.2, margin=0.002):
     print("narrowed %d tracks to restore 0.2 mm clearance" % fixed)
 
 
-class SilkPlacer:
-    """Puts each text at the first candidate spot that clears all pads, all courtyards (so designators stay
-    readable after assembly), the texts already placed, the card edge and the contact tab."""
-
-    def __init__(self, fps, vias, bottom=False):
-        self.obst, self.texts = [], []
-        for f in fps.values():
-            for pad in f.Pads():
-                if bottom and not (pad.HasHole() or pad.IsOnLayer(p.B_Cu)):
-                    continue
-                self.obst.append(self.rect(pad.GetBoundingBox(), 0.25))
-            crt = f.GetCourtyard(p.F_CrtYd)
-            if crt.OutlineCount() and not bottom:
-                self.obst.append(self.rect(crt.BBox(), 0.1))
-        for v in vias:
-            self.obst.append(self.rect(v.GetBoundingBox(), 0.2))
-
-    def block(self, lines, anchors, h=TEXT_SIZE, step=1.65):
-        """Place several lines as one left-aligned block at the first anchor where every line fits."""
-        for ax, ay in anchors:
-            rects = []
-            wmax = max(self.size(s, h)[0] for s in lines)
-            for i, s in enumerate(lines):
-                if s:
-                    hh = self.size(s, h)[1]
-                    rects.append((ax, ay + i * step - hh / 2, ax + wmax, ay + i * step + hh / 2))
-            if all(self.free(r) for r in rects):
-                self.texts.extend(rects)
-                return ax, ay
-        raise RuntimeError("no room for block %r" % lines[0])
-
-    @staticmethod
-    def rect(bb, m=0.0):
-        return (p.ToMM(bb.GetLeft()) - OX - m, p.ToMM(bb.GetTop()) - OY - m,
-                p.ToMM(bb.GetRight()) - OX + m, p.ToMM(bb.GetBottom()) - OY + m)
-
-    @staticmethod
-    def size(s, h):
-        return len(s) * 0.92 * h + 0.3, h + 0.3
-
-    def free(self, r):
-        if r[0] < 0.8 or r[1] < 0.8 or r[2] > W - 0.8 or r[3] > BODY_BOTTOM - 0.8:
-            return False
-        return not any(r[0] < o[2] and o[0] < r[2] and r[1] < o[3] and o[1] < r[3] for o in self.obst + self.texts)
-
-    def place(self, s, candidates, h=TEXT_SIZE):
-        w, hh = self.size(s, h)
-        for cx, cy in candidates:
-            r = (cx - w / 2, cy - hh / 2, cx + w / 2, cy + hh / 2)
-            if self.free(r):
-                self.texts.append(r)
-                return cx, cy
-        raise RuntimeError("no free silkscreen spot for %r" % s)
-
-    def around(self, box, s, h=TEXT_SIZE, prefer=("above", "below", "left", "right")):
-        w, hh = self.size(s, h)
-        x0, y0, x1, y1 = box
-        cx, cy, g = (x0 + x1) / 2, (y0 + y1) / 2, 0.3
-        spots = {
-            "above": [(x0 + (x1 - x0) * k, y0 - g - hh / 2) for k in (0.5, 0.25, 0.75, 0.0, 1.0)],
-            "below": [(x0 + (x1 - x0) * k, y1 + g + hh / 2) for k in (0.5, 0.25, 0.75, 0.0, 1.0)],
-            "left": [(x0 - g - w / 2, y0 + (y1 - y0) * k) for k in (0.5, 0.0, 1.0)],
-            "right": [(x1 + g + w / 2, y0 + (y1 - y0) * k) for k in (0.5, 0.0, 1.0)],
-        }
-        cands = [c for side in prefer for c in spots[side]]
-        for d in (1.0, 2.0, 3.0):  # then a little further out
-            cands += [(cx, y0 - g - hh / 2 - d), (cx, y1 + g + hh / 2 + d), (x0 - g - w / 2 - d, cy), (x1 + g + w / 2 + d, cy)]
-        return self.place(s, cands, h)
-
-    def box(self, f):
-        crt = f.GetCourtyard(p.F_CrtYd)
-        return self.rect(crt.BBox()) if crt.OutlineCount() else self.rect(f.GetBoundingBox(False, False))
-
-
-def place_silkscreen(b, fps):
-    vias = []  # vias are tented; silkscreen may cross them
-    sp = SilkPlacer(fps, vias)
-    order = sorted(fps, key=lambda r: (not r.startswith("U"), not r.startswith("SW"), r))
-    for ref in order:
-        f = fps[ref]
-        fld = f.Reference()
-        fld.SetTextSize(p.VECTOR2I(p.FromMM(TEXT_SIZE), p.FromMM(TEXT_SIZE)))
-        fld.SetTextThickness(p.FromMM(TEXT_THICK))
-        if ref.startswith("TP") or (ref.startswith("H") and ref[1:].isdigit()) or ref == "J1":
-            fld.SetVisible(False)
-            continue
-        prefer = ("right", "left", "above", "below") if ref.startswith("RN") else ("above", "below", "left", "right")
-        x, y = sp.around(sp.box(f), ref, prefer=prefer)
-        fld.SetPosition(V(x, y))
-        fld.SetTextAngle(p.EDA_ANGLE(0, p.DEGREES_T))
-    # Function labels.
-    for ref, label in TP_LABEL.items():
-        x, y = sp.around(sp.box(fps[ref]), label, prefer=("below", "above", "right", "left"))
-        text(b, label, x, y)
-    for ref, label in (("SW1", "MEM"), ("SW2", "I/O")):
-        x, y = sp.around(sp.box(fps[ref]), label, prefer=("below", "above"))
-        text(b, label, x, y)
-    x, y = sp.around(sp.box(fps["JP1"]), "WRITE", prefer=("above", "left", "right", "below"))
-    text(b, "WRITE", x, y)
-    for ref, label in (("D1", "ACT"), ("D2", "VPP")):
-        f = fps[ref]
-        c = [pd for pd in f.Pads() if pd.GetNumber() == "1"][0]
-        kx, ky, kx1, ky1 = sp.rect(c.GetBoundingBox(), 0.0)
-        x, y = sp.around((kx, ky, kx1, ky1), "K", prefer=("left", "above", "below", "right"))
-        text(b, "K", x, y)
-        x, y = sp.around(sp.box(f), label, prefer=("below", "above", "right", "left"))
-        text(b, label, x, y)
-    # Title block in the free area between the flash and the logic rows.
-    lines = [("ISA FLASH DISK  rev A", 1.5), ("2x 28F008SA  1-2 MB", TEXT_SIZE),
-             ("github.com/adsdevdoo/isa-flash-disk", TEXT_SIZE), ("SW: ON = 0, default MEM CC000 I/O 2A0", TEXT_SIZE),
-             ("JP1 open = write protected", TEXT_SIZE)]
-    y = 46.0
-    for s, h in lines:
-        cands = [(cx, cy) for cy in [y + d * 0.5 for d in range(0, 30)] for cx in [26.0 + dx for dx in (0, -4, 4, -8, 8, -12, 12)]]
-        x, y = sp.place(s, cands, h)
-        text(b, s, x, y, h, bold=(h > TEXT_SIZE))
-        y += h + 0.9
-    # Address bit next to every switch position (top side).
-    for ref, bits in (("SW1", range(13, 18)), ("SW2", range(3, 9))):
-        f = fps[ref]
-        x0 = sp.box(f)[0]
-        for n, bit in enumerate(bits, 1):
-            pad = [pd for pd in f.Pads() if pd.GetNumber() == str(n)][0]
-            py = p.ToMM(pad.GetPosition().y) - OY
-            label = "A%d" % bit
-            w, _ = sp.size(label, TEXT_SIZE)
-            x, y = sp.place(label, [(x0 - 0.3 - w / 2, py)])
-            text(b, label, x, y)
-    # Slot orientation, as on other 8-bit cards: contact numbers at both ends, side name, arrow to the bracket.
-    ty = BODY_BOTTOM - 1.6
-    ys = [ty - 0.3 * k for k in range(0, 10)]
-    for label, x in (("A31", 2.54), ("A1", 78.74)):
-        x, y = sp.place(label, [(x + dx, yy) for yy in ys for dx in (0, 1.5, -1.5)])
-        text(b, label, x, y)
-    s = "8-BIT ISA  COMPONENT SIDE"
-    x, y = sp.place(s, [(cx, yy) for yy in ys for cx in (40.6, 34.0, 47.0)])
-    text(b, s, x, y)
-    ay = BODY_BOTTOM - 4.0
-    x0, x1 = 84.0, 96.0
-    s = "BRACKET"
-    tx, tyy = sp.place(s, [((x0 + x1) / 2, ay - 1.4), ((x0 + x1) / 2, ay - 2.0)])
-    text(b, s, tx, tyy)
-    sp.texts.append((x0 - 0.2, ay - 0.9, x1 + 0.2, ay + 0.9))
-    for a, z in (((x0, ay), (x1, ay)), ((x1, ay), (x1 - 1.4, ay - 0.8)), ((x1, ay), (x1 - 1.4, ay + 0.8))):
-        seg = p.PCB_SHAPE(b)
-        seg.SetShape(p.SHAPE_T_SEGMENT)
-        seg.SetStart(V(*a))
-        seg.SetEnd(V(*z))
-        seg.SetLayer(p.F_SilkS)
-        seg.SetWidth(p.FromMM(0.2))
-        b.Add(seg)
-
-    # Bottom side: title and the full switch tables (text mirrored, reads from the bottom).
-    spb = SilkPlacer(fps, vias, bottom=True)
-    for label, x in (("B31", 2.54), ("B1", 78.74)):
-        x, y = spb.place(label, [(x + dx, yy) for yy in ys for dx in (0, 1.5, -1.5)])
-        text(b, label, x, y, layer=p.B_SilkS)
-    s = "8-BIT ISA  SOLDER SIDE"
-    x, y = spb.place(s, [(cx, yy) for yy in ys for cx in (40.6, 34.0, 47.0)])
-    text(b, s, x, y, layer=p.B_SilkS)
-    for s_, h_, cy in (("ISA FLASH DISK rev A", 1.5, 70.0), ("github.com/adsdevdoo/isa-flash-disk", TEXT_SIZE, 72.6)):
-        x_, y_ = spb.place(s_, [(cx, cy + d) for d in (0, 2, 4, -2, -4) for cx in (W / 2, W / 2 - 10, W / 2 + 10)], s_ and h_)
-        text(b, s_, x_, y_, h_, layer=p.B_SilkS, bold=(h_ > TEXT_SIZE))
-    sw1 = ("SW1  MEM WINDOW   ON = 0", ["SW1", "1", "2", "3", "4", "5"], ["bit", "A13", "A14", "A15", "A16", "A17"],
-           [["C8000", "ON", "ON", "OFF", "ON", "ON"], ["CC000 *", "ON", "OFF", "OFF", "ON", "ON"],
-            ["D0000", "ON", "ON", "ON", "OFF", "ON"], ["E0000", "ON", "ON", "ON", "ON", "OFF"]])
-    sw2 = ("SW2  I/O PORT   ON = 0", ["SW2", "1", "2", "3", "4", "5", "6"], ["bit", "A3", "A4", "A5", "A6", "A7", "A8"],
-           [["280", "ON", "ON", "ON", "ON", "OFF", "ON"], ["2A0 *", "ON", "ON", "OFF", "ON", "OFF", "ON"],
-            ["300", "ON", "ON", "ON", "ON", "ON", "OFF"]])
-    rects = []
-    y = 9.0
-    for title, head1, head2, rows in (sw1, sw2):
-        rects.append(silk_table(b, 44.0, y, title, [head1, head2] + rows))
-        y = rects[-1][3] + 2.5
-    for s in ("* default", "JP1 WRITE open = write protected"):
-        text(b, s, 44.0, y, TEXT_SIZE, layer=p.B_SilkS, justify="left")
-        rects.append((44.0 - spb.size(s, TEXT_SIZE)[0], y - 0.8, 44.0, y + 0.8))
-        y += 1.8
-    for r in rects:
-        if not spb.free(r):
-            raise RuntimeError("switch table overlaps bottom-side copper at %s" % (r,))
-    spb.texts.extend(rects)
-    return sp.texts + spb.texts
-
-
-def silk_table(b, x_left_seen_from_bottom, y_top, title, rows, cw0=10.0, cw=5.0, rh=2.3):
-    """A ruled table on the bottom silkscreen. It is mirrored on the drawing: seen from the bottom its left
-    edge is at x_left_seen_from_bottom and its columns run towards smaller x on the top-view drawing."""
-    ncol = len(rows[0])
-    widths = [cw0] + [cw] * (ncol - 1)
-    total = sum(widths)
-    x0 = x_left_seen_from_bottom          # drawing x of the visible left edge
-    nrows = len(rows) + 1
-    bottom = y_top + nrows * rh
-
-    def line(a, z):
-        s = p.PCB_SHAPE(b)
-        s.SetShape(p.SHAPE_T_SEGMENT)
-        s.SetStart(V(*a))
-        s.SetEnd(V(*z))
-        s.SetLayer(p.B_SilkS)
-        s.SetWidth(p.FromMM(TEXT_THICK))
-        b.Add(s)
-
-    for k in range(nrows + 1):
-        yy = y_top + k * rh
-        line((x0, yy), (x0 - total, yy))
-    acc = 0.0
-    for i in range(ncol + 1):
-        line((x0 - acc, y_top + (0 if i in (0, ncol) else rh)), (x0 - acc, bottom))
-        if i < ncol:
-            acc += widths[i]
-    text(b, title, x0 - total / 2, y_top + rh / 2, TEXT_SIZE, layer=p.B_SilkS, bold=True)
-    for r, cells in enumerate(rows, 1):
-        acc = 0.0
-        for i, cell in enumerate(cells):
-            text(b, cell, x0 - acc - widths[i] / 2, y_top + r * rh + rh / 2, TEXT_SIZE, layer=p.B_SilkS,
-                 bold=(r <= 2 or i == 0))
-            acc += widths[i]
-    return (x0 - total, y_top, x0, bottom)
-
-
 def merge_project_rules():
     """Copy board rules and net classes that pcbnew stored next to the placed board into the project file."""
     src = json.loads((BUILD / "placed.kicad_pro").read_text(encoding="utf-8"))
@@ -533,9 +292,11 @@ def main():
     p.ZONE_FILLER(b).Fill(b.Zones())
     silk_rects = place_silkscreen(b, fps)
     stitch_gnd(b, avoid=silk_rects)
+    set_title_block(b)
 
     b.SetFileName(str(BOARD))
     p.SaveBoard(str(BOARD), b, True)
+    stable_uuids(BOARD)
     merge_project_rules()
     STAMP.write_text(sha(BOARD) + "\n", encoding="utf-8", newline="\n")
     tracks = [t for t in b.GetTracks() if t.GetClass() == "PCB_TRACK"]

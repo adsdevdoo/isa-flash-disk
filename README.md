@@ -15,16 +15,17 @@
 |---|---|---|
 | 1. Исследование | документация, выбор архитектуры | выполнено |
 | 2–3. Схема карты | 1–2 микросхемы, банки, защита записи | схема rev A: ERC 0, нетлист сверен |
-| 5. Плата | разводка, DRC, Gerber | **rev A разведена: DRC 0, соответствие схеме 0 расхождений** |
+| 5. Плата | разводка, DRC, Gerber | **rev B: DRC 0, соответствие схеме 0 расхождений**; от rev A отличается только шелкографией ([CHANGELOG](CHANGELOG.md)) |
 | 2. Прототип | изготовление, чтение, адресация, запись | **rev A заказана в JLCPCB 2026-11-15** (5 шт., LeadFree HASL, фаска 45°), ещё не получена |
 | 4. Программы | Option ROM, FLINFO/FLREAD/FLWRITE/FLFORMAT/FLTEST, mkdisk | **v1.2, чтение и запись из DOS, формат диска 3 (без потерь при сбое питания), проверка износа FLTEST: 136 проверок в эмуляторе, на железе нет** |
 
-**Статус: инженерный прототип rev A, не испытан в железе.** Плата 104.14 × 100 мм под планку Keystone 9202,
+**Статус: инженерный прототип, не испытан в железе.** Заказана rev A, актуальная ревизия — rev B (та же медь, новая
+шелкография). Плата 104.14 × 100 мм под планку Keystone 9202,
 архив для JLCPCB — [hardware/gerber/](hardware/gerber/), параметры заказа и границы проверки —
 [docs/manufacturing.md](docs/manufacturing.md). Схема — [docs/schematic.pdf](docs/schematic.pdf),
 проект KiCad 9 — [hardware/kicad/](hardware/kicad/). Покупку и заказ выполняет владелец.
 
-![Верх платы rev A (CAD-рендер)](images/isa-flash-disk-top.png)
+![Верх платы rev B (CAD-рендер)](images/isa-flash-disk-top.png)
 
 ## Настройка переключателей
 
@@ -52,12 +53,12 @@
 ([docs/memory-map.md](docs/memory-map.md)). **JP1 WRITE** снята — флеш защищена от записи; ставится только на время
 записи утилитами.
 
-![Низ платы rev A (CAD-рендер)](images/isa-flash-disk-bottom.png)
+![Низ платы rev B (CAD-рендер)](images/isa-flash-disk-bottom.png)
 
 ## Заказ платы в JLCPCB
 
-Загрузить [hardware/gerber/isa-flash-disk-revA-jlcpcb.zip](hardware/gerber/isa-flash-disk-revA-jlcpcb.zip)
-и выставить в форме:
+Загрузить [hardware/gerber/isa-flash-disk-revB-jlcpcb.zip](hardware/gerber/isa-flash-disk-revB-jlcpcb.zip)
+(rev A, заказанная 2026-11-15, лежит рядом без изменений) и выставить в форме:
 
 | Поле | Значение |
 |---|---|

@@ -4,7 +4,8 @@ and as a placement map while soldering.
 
 Run with KiCad's Python:
   "C:/Program Files/KiCad/9.0/bin/python.exe" tools/kicad/make_print.py <tmp dir>
-then the script calls kicad-cli and writes hardware/print/isa-flash-disk-revA-top-1to1.pdf.
+then the script calls kicad-cli and writes hardware/print/isa-flash-disk-rev<REV>-top-1to1.pdf
+(REV from silk_board.py; the rev A sheet of the ordered boards stays in hardware/print/).
 """
 
 import os
@@ -13,9 +14,12 @@ import sys
 
 import pcbnew
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from silk_board import REV  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, "hardware", "kicad", "isa-flash-disk.kicad_pcb")
-OUT = os.path.join(ROOT, "hardware", "print", "isa-flash-disk-revA-top-1to1.pdf")
+OUT = os.path.join(ROOT, "hardware", "print", "isa-flash-disk-rev%s-top-1to1.pdf" % REV)
 CLI = os.path.join(os.path.dirname(sys.executable), "kicad-cli.exe")
 MM = pcbnew.FromMM
 
@@ -51,7 +55,7 @@ def main():
     for item in list(board.GetFootprints()) + list(board.GetTracks()) + list(board.GetDrawings()) + list(board.Zones()):
         item.Move(off)
 
-    text(board, "ISA Flash Disk rev A - top side, scale 1:1", 20, 16, 4.0, True)
+    text(board, "ISA Flash Disk rev %s - top side, scale 1:1" % REV, 20, 16, 4.0, True)
     text(board, "Print at 100 % (no 'fit to page'). Check: the board outline is 104.14 x 100.00 mm,", 20, 26)
     text(board, "the scale bar below is 100.0 mm. Pads are drawn as outlines with pin numbers.", 20, 32)
     text(board, "PSOP-44 check: lay a salvaged chip on U1 - every lead must sit on its pad.", 20, 38)

@@ -1,6 +1,6 @@
 # Сборка карты
 
-Статус: **инструкция для rev A, на собранной плате ещё не проверялась.** Плата заказывается пустой и паяется
+Статус: **инструкция для rev A и rev B (медь и расстановка одинаковые), на собранной плате ещё не проверялась.** Плата заказывается пустой и паяется
 вручную. Перед первой картой прочитать целиком.
 
 ## Что нужно
@@ -8,7 +8,8 @@
 - Детали — таблица ниже, файл для заказа — [hardware/bom/isa-flash-disk-purchase.csv](../hardware/bom/isa-flash-disk-purchase.csv).
 - Микросхемы PA28F008SA (PSOP-44), снятые с модуля ([original-module.md](original-module.md)).
 - Паяльник с тонким жалом, флюс, оплётка, пинцет, лупа или микроскоп, мультиметр, спирт для отмывки.
-- Распечатка платы 1:1 — [hardware/print/isa-flash-disk-revA-top-1to1.pdf](../hardware/print/isa-flash-disk-revA-top-1to1.pdf).
+- Распечатка платы 1:1 — [hardware/print/isa-flash-disk-revA-top-1to1.pdf](../hardware/print/isa-flash-disk-revA-top-1to1.pdf)
+  (для rev B — [isa-flash-disk-revB-top-1to1.pdf](../hardware/print/isa-flash-disk-revB-top-1to1.pdf), там же типы микросхем).
   Печатать в масштабе 100 % (без «по размеру страницы»), проверить линейкой: контур платы 104.14 × 100 мм,
   масштабная линейка на листе — 100 мм. На ней видно, где какая деталь, и по ней проверяется корпус флеш.
 - DOS-дискета с `FLINFO.COM`, `FLTEST.COM`, `FLFORMAT.COM`, `FLWRITE.COM`, `FLREAD.COM`, `FLASHROM.BIN` из
